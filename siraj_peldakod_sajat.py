@@ -3,7 +3,7 @@ import numpy as np
 import helpers
 import operator
 
-# GLOBAL CONTANTS
+# GLOBAL CONSTANTS
 PAD = 0
 EOS = 1
 character_changing_num = 10
