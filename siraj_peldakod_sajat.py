@@ -9,8 +9,6 @@ EOS = 1
 character_changing_num = 10
 max_batches = 3001
 batches_in_epoch = 10
-# send 10 sequences into encoder at one time
-batch_size = 10
 
 # x (store encoder inputs [source morphological tags + target morphological tags + source word])
 source_data = []
@@ -273,6 +271,9 @@ loss = tf.reduce_mean(stepwise_cross_entropy)
 train_op = tf.train.AdamOptimizer().minimize(loss)
 
 sess.run(tf.global_variables_initializer())
+
+# send 10 sequences into encoder at one time
+batch_size = 10
 
 # create batches with size of batch_size
 def create_batches(data, batch_size):
