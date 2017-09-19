@@ -188,7 +188,7 @@ def main():
     # stores encoded forms
     alphabet_and_morph_tags = dict()
 
-    source_data, target_data = read_split_encode_data('task1.tsv', alphabet_and_morph_tags, BOS, EOS)
+    source_data, target_data = read_split_encode_data('task2.tsv', alphabet_and_morph_tags, BOS, EOS)
 
     # Clears the default graph stack and resets the global default graph.
     tf.reset_default_graph() 
@@ -373,7 +373,7 @@ def main():
     decoder_logits = tf.reshape(decoder_logits_flat, (decoder_max_steps, decoder_batch_size, vocab_size))
 
     #final prediction
-    decoder_prediction = tf.argmax(decoder_logits, 1)
+    decoder_prediction = tf.argmax(decoder_logits, axis=1)
 
     #cross entropy loss
     #one hot encode the target values so we don't rank just differentiate
@@ -404,7 +404,7 @@ def main():
    
                 _, l = sess.run([train_op, loss], fd)
                 loss_track.append(l)
-        
+               
                 if batch_num == 0 or batch_num % batches_in_epoch == 0:
                     print('batch {}'.format(batch_num))
                     print('  minibatch loss: {}'.format(sess.run(loss, fd)))
@@ -416,7 +416,10 @@ def main():
                         if i >= 2:
                             break
                     print()
+                
             
+        sess.close()
+
     except KeyboardInterrupt:
         print('training interrupted')
 
