@@ -177,7 +177,7 @@ def main():
     input_embedding_size = 300 
     neuron_num = 100
     # iteration number during training
-    epoch = 100
+    epoch = 1000
     loss_track = []
 
     # x (store encoder inputs [source morphological tags + target morphological tags + source word])
