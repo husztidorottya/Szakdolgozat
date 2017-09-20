@@ -189,8 +189,8 @@ def main():
     # randomly initialized embedding matrrix that can fit input sequence
     # used to convert sequences to vectors (embeddings) for both encoder and decoder of the right size
     # reshaping is a thing, in TF you gotta make sure you tensors are the right shape (num dimensions)
-    #embeddings = tf.Variable(tf.random_uniform([vocab_size, input_embedding_size], -1.0, 1.0), dtype=tf.float32)
-    embeddings = tf.Variable(tf.eye(vocab_size, input_embedding_size), dtype='float32')
+    embeddings = tf.Variable(tf.random_uniform([vocab_size, input_embedding_size], -1.0, 1.0), dtype=tf.float32)
+    #embeddings = tf.Variable(tf.eye(vocab_size, input_embedding_size), dtype='float32')
 
     # this thing could get huge in a real world application
     encoder_inputs_embedded = tf.nn.embedding_lookup(embeddings, encoder_inputs)
@@ -228,8 +228,8 @@ def main():
 
     #manually specifying since we are going to implement attention details for the decoder in a sec
     #weights
-    #W = tf.Variable(tf.random_uniform([decoder_hidden_units, vocab_size], -1, 1), dtype=tf.float32)
-    W = tf.Variable(tf.eye(decoder_hidden_units, vocab_size), dtype='float32')
+    W = tf.Variable(tf.random_uniform([decoder_hidden_units, vocab_size], -1, 1), dtype=tf.float32)
+    #W = tf.Variable(tf.eye(decoder_hidden_units, vocab_size), dtype='float32')
     #bias
     b = tf.Variable(tf.zeros([vocab_size]), dtype=tf.float32)
 
@@ -347,7 +347,7 @@ def main():
     #train it 
     #train_op = tf.train.AdamOptimizer().minimize(loss)
     #train it 
-    train_op = tf.train.GradientDescentOptimizer(0.1).minimize(loss) # set learning_rate = 0.001
+    train_op = tf.train.GradientDescentOptimizer(0.01).minimize(loss) # set learning_rate = 0.001
 
 
     sess.run(tf.global_variables_initializer())
