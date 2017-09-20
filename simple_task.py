@@ -2,6 +2,8 @@ import tensorflow as tf
 import numpy as np
 import helpers
 import operator
+import random
+
 
 # create (source morphological tags + target morphological tags + source/target word) sequence
 def create_sequence(data_line_, word_index, BOS, EOS):
@@ -30,7 +32,7 @@ def create_sequence(data_line_, word_index, BOS, EOS):
         sequence.append(i)
         
     # append end of the input
-    sequence.append(EOS)
+    #sequence.append(EOS)
         
     return sequence
 
@@ -325,7 +327,10 @@ stepwise_cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
 #loss function
 loss = tf.reduce_mean(stepwise_cross_entropy)
 #train it 
-train_op = tf.train.AdamOptimizer().minimize(loss)
+#train_op = tf.train.AdamOptimizer().minimize(loss)
+#train it 
+train_op = tf.train.GradientDescentOptimizer(0.01).minimize(loss) # set learning_rate = 0.001
+
 
 sess.run(tf.global_variables_initializer())
 
@@ -333,7 +338,7 @@ sess.run(tf.global_variables_initializer())
 batch_size = 20
 
 # create batches with size of batch_size
-def create_batches(data, batch_size):
+def create_batches(source_data, target_data, batch_size):
     # stores batches
     source_batches = []
     target_batches = []
@@ -367,10 +372,6 @@ def create_batches(data, batch_size):
         
     return source_batches, target_batches
 
-# encoder inputs devided into batches
-source_batches , target_batches= create_batches(source_data, batch_size)
-
-
 
 def next_feed(batch_num, source_batches, target_batches):
     # get transpose of source_batches[batch_num]
@@ -398,6 +399,13 @@ try:
     for epoch_num in range(epoch):
         # get every batches and train the model on it
         print('Epoch:',epoch_num)
+
+        # shuffle it in every epoch for creating random batches
+        source_data = random.sample(source_data, len(source_data))
+        
+        # encoder inputs and decoder outputs devided into batches
+        source_batches, target_batches = create_batches(source_data, target_data, batch_size)
+
         for batch_num in range(0, len(source_batches)):
             fd = next_feed(batch_num, source_batches, target_batches)
    
