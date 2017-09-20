@@ -37,7 +37,6 @@ def create_sequence(data_line_, word_index, BOS, EOS):
     return sequence
 
 
-
 # encoding input data
 def encoding(data, coded_word, alphabet_and_morph_tags):
     for character in data:
@@ -45,7 +44,6 @@ def encoding(data, coded_word, alphabet_and_morph_tags):
         coded_word.append(index)
         
     return coded_word
-
 
 
 def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
@@ -103,6 +101,7 @@ def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
 
     return source_data, target_data
 
+
 # create batches with size of batch_size
 def create_batches(source_data, target_data, batch_size):
     # stores batches
@@ -138,6 +137,7 @@ def create_batches(source_data, target_data, batch_size):
         
     return source_batches, target_batches
 
+
 def main():
 
     # GLOBAL CONTANTS
@@ -145,7 +145,10 @@ def main():
     PAD = 0
     EOS = 1
     character_changing_num = 10
-    batches_in_epoch = 20
+    batches_in_epoch = 100
+    #character length
+    input_embedding_size = 300 
+    neuron_num =100
     loss_track = []
 
     # x (store encoder inputs [source morphological tags + target morphological tags + source word])
@@ -156,8 +159,7 @@ def main():
     # stores encoded forms
     alphabet_and_morph_tags = dict()
 
-    source_data, target_data = read_split_encode_data('teszt.tsv', alphabet_and_morph_tags, BOS, EOS)
-
+    source_data, target_data = read_split_encode_data('teszt2.tsv', alphabet_and_morph_tags, BOS, EOS)
 
     # Clears the default graph stack and resets the global default graph.
     tf.reset_default_graph() 
@@ -170,11 +172,8 @@ def main():
     # calculate vocab_size
     vocab_size = max_alphabet_and_morph_tags + 1
 
-    #character length
-    input_embedding_size = 300 
-
     # num neurons
-    encoder_hidden_units = 100 
+    encoder_hidden_units = neuron_num 
     # in original paper, they used same number of neurons for both encoder
     # and decoder, but we use twice as many so decoded output is different, the target value is the original input 
     #in this example
@@ -190,7 +189,8 @@ def main():
     # randomly initialized embedding matrrix that can fit input sequence
     # used to convert sequences to vectors (embeddings) for both encoder and decoder of the right size
     # reshaping is a thing, in TF you gotta make sure you tensors are the right shape (num dimensions)
-    embeddings = tf.Variable(tf.random_uniform([vocab_size, input_embedding_size], -1.0, 1.0), dtype=tf.float32)
+    #embeddings = tf.Variable(tf.random_uniform([vocab_size, input_embedding_size], -1.0, 1.0), dtype=tf.float32)
+    embeddings = tf.Variable(tf.eye(vocab_size, input_embedding_size), dtype='float32')
 
     # this thing could get huge in a real world application
     encoder_inputs_embedded = tf.nn.embedding_lookup(embeddings, encoder_inputs)
@@ -228,7 +228,8 @@ def main():
 
     #manually specifying since we are going to implement attention details for the decoder in a sec
     #weights
-    W = tf.Variable(tf.random_uniform([decoder_hidden_units, vocab_size], -1, 1), dtype=tf.float32)
+    #W = tf.Variable(tf.random_uniform([decoder_hidden_units, vocab_size], -1, 1), dtype=tf.float32)
+    W = tf.Variable(tf.eye(decoder_hidden_units, vocab_size), dtype='float32')
     #bias
     b = tf.Variable(tf.zeros([vocab_size]), dtype=tf.float32)
 
@@ -346,7 +347,7 @@ def main():
     #train it 
     #train_op = tf.train.AdamOptimizer().minimize(loss)
     #train it 
-    train_op = tf.train.GradientDescentOptimizer(0.01).minimize(loss) # set learning_rate = 0.001
+    train_op = tf.train.GradientDescentOptimizer(0.1).minimize(loss) # set learning_rate = 0.001
 
 
     sess.run(tf.global_variables_initializer())
@@ -379,7 +380,7 @@ def main():
 
 
     try:
-        epoch = 100
+        epoch = 1000
         for epoch_num in range(epoch):
             # get every batches and train the model on it
             print('Epoch:',epoch_num)
