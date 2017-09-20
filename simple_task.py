@@ -137,6 +137,25 @@ def create_batches(source_data, target_data, batch_size):
         
     return source_batches, target_batches
 
+def next_feed(batch_num, source_batches, target_batches, EOS, PAD, character_changing_num, encoder_inputs, encoder_inputs_length, decoder_targets):
+        # get transpose of source_batches[batch_num]
+        encoder_inputs_, encoder_input_lengths_ = helpers.batch(source_batches[batch_num])
+    
+        # get max input sequence length
+        max_input_length = max(encoder_input_lengths_)
+    
+        # target word is max character_changing_num character longer than source word 
+        # get transpose of target_batches[i] and put an EOF and PAD at the end
+        decoder_targets_, _ = helpers.batch(
+            [(sequence) + [EOS] + [PAD] * ((max_input_length + character_changing_num - 1) - len(sequence))  for sequence in target_batches[batch_num]]
+        )
+   
+        return {
+            encoder_inputs: encoder_inputs_,
+            encoder_inputs_length: encoder_input_lengths_,
+            decoder_targets: decoder_targets_,
+        }
+
 
 def main():
 
@@ -298,7 +317,6 @@ def main():
     
         elements_finished = (time >= decoder_lengths) # this operation produces boolean tensor of [batch_size]
                                                   # defining if corresponding sequence has ended
-
     
         #Computes the "logical and" of elements across dimensions of a tensor.
         finished = tf.reduce_all(elements_finished) # -> boolean scalar
@@ -361,28 +379,7 @@ def main():
     #train it 
     train_op = tf.train.GradientDescentOptimizer(0.01).minimize(loss) # set learning_rate = 0.001
 
-
     sess.run(tf.global_variables_initializer())
-
-    def next_feed(batch_num, source_batches, target_batches):
-        # get transpose of source_batches[batch_num]
-        encoder_inputs_, encoder_input_lengths_ = helpers.batch(source_batches[batch_num])
-    
-        # get max input sequence length
-        max_input_length = max(encoder_input_lengths_)
-    
-        # target word is max character_changing_num character longer than source word 
-        # get transpose of target_batches[i] and put an EOF and PAD at the end
-        decoder_targets_, _ = helpers.batch(
-            [(sequence) + [EOS] + [PAD] * ((max_input_length + character_changing_num - 1) - len(sequence))  for sequence in target_batches[batch_num]]
-        )
-   
-        return {
-            encoder_inputs: encoder_inputs_,
-            encoder_inputs_length: encoder_input_lengths_,
-            decoder_targets: decoder_targets_,
-        }
-
 
 
     try:
@@ -397,7 +394,7 @@ def main():
             source_batches, target_batches = create_batches(source_data, target_data, batch_size)
 
             for batch_num in range(0, len(source_batches)):
-                fd = next_feed(batch_num, source_batches, target_batches)
+                fd = next_feed(batch_num, source_batches, target_batches, EOS, PAD, character_changing_num, encoder_inputs, encoder_inputs_length, decoder_targets)
    
                 _, l = sess.run([train_op, loss], fd)
                 loss_track.append(l)
