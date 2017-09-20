@@ -9,21 +9,20 @@ import random
 def create_sequence(data_line_, word_index, BOS, EOS):
     sequence = []
     
+    '''
     # task 2
     if len(data_line_) == 4:
         # source and target morphological tags are appended only to the input
         if word_index != 3:
-            for i in data_line_[0]:
-                sequence.append(i)
-            
             for i in data_line_[2]:
                 sequence.append(i)
     # task 1,3
     else:
-        if word_index != 2:
-            # source and target morphological tags are appended only to the input
-            for i in data_line_[1]:
-                sequence.append(i)
+    '''
+    if word_index != 1:
+        # source and target morphological tags are appended only to the input
+        for i in data_line_[2]:
+            sequence.append(i)
         
     # append beginning of the input
     sequence.append(BOS)
@@ -61,6 +60,7 @@ def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
                 # contains encoded form of word
                 coded_word = []
             
+                '''
                 # task 2
                 if len(data_line_) == 4:
                     if item == 1 or item == 3:
@@ -68,26 +68,27 @@ def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
                         coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
                     else:
                         # split morphological tags
-                        tags = data_line_[item].split(',')
+                        tags = data_line_[item].split(';')
                 
                         coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
                 # task 1,3
                 else:
-                    if item == 1:
-                        # split morphological tags
-                        tags = data_line_[item].split(',')
+                '''
+                if item == 2:
+                    # split morphological tags
+                    tags = data_line_[item].split(';')
                 
-                        coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
-                    else:
-                        # encode source and target word
-                        coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
+                    coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
+                else:
+                    # encode source and target word
+                    coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
                         
                 # store encoded form
                 data_line_[item] = coded_word
         
             # defines source and target words' index
             source_idx = len(data_line_) - 3
-            target_idx = len(data_line_) - 1 
+            target_idx = len(data_line_) - 2 
         
             # store encoder input task 2:(source morphological tags + target morphological tags + source word)
             # task 1,3: (source/target morphological tags + source word)
@@ -180,7 +181,7 @@ def main():
     # stores encoded forms
     alphabet_and_morph_tags = dict()
 
-    source_data, target_data = read_split_encode_data('teszt.tsv', alphabet_and_morph_tags, BOS, EOS)
+    source_data, target_data = read_split_encode_data('task1.tsv', alphabet_and_morph_tags, BOS, EOS)
 
     # Clears the default graph stack and resets the global default graph.
     tf.reset_default_graph() 
@@ -259,7 +260,6 @@ def main():
     assert EOS == 1 and PAD == 0 and BOS == 2
 
     bos_time_slice = tf.fill([batch_size], 2, name='BOS')
-
     eos_time_slice = tf.ones([batch_size], dtype=tf.int32, name='EOS')
     pad_time_slice = tf.zeros([batch_size], dtype=tf.int32, name='PAD')
 
@@ -267,10 +267,10 @@ def main():
     batch_size = 20
 
     #retrieves rows of the params tensor. The behavior is similar to using indexing with arrays in numpy
+    bos_step_embedded = tf.nn.embedding_lookup(embeddings, bos_time_slice)
     eos_step_embedded = tf.nn.embedding_lookup(embeddings, eos_time_slice)
     pad_step_embedded = tf.nn.embedding_lookup(embeddings, pad_time_slice)
-    bos_step_embedded = tf.nn.embedding_lookup(embeddings, bos_time_slice)
-
+    
     #manually specifying loop function through time - to get initial cell state and input to RNN
     #normally we'd just use dynamic_rnn, but lets get detailed here with raw_rnn
 
@@ -376,11 +376,11 @@ def main():
     loss = tf.reduce_mean(stepwise_cross_entropy)
     #train it 
     #train_op = tf.train.AdamOptimizer().minimize(loss)
-    #train it 
-    train_op = tf.train.GradientDescentOptimizer(0.01).minimize(loss) # set learning_rate = 0.001
+    train_op = tf.train.GradientDescentOptimizer(0.1).minimize(loss) # set learning_rate = 0.001
 
     sess.run(tf.global_variables_initializer())
 
+    saver = tf.train.Saver({'embeddings':embeddings,'W':W,'b':b})
 
     try:
         for epoch_num in range(epoch):
@@ -410,6 +410,9 @@ def main():
                         if i >= 2:
                             break
                     print()
+
+        saver.save(sess, 'my_train_model')
+        sess.close()
 
     except KeyboardInterrupt:
         print('training interrupted')
