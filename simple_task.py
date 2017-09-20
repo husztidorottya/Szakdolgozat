@@ -149,6 +149,8 @@ def main():
     #character length
     input_embedding_size = 300 
     neuron_num =100
+    epoch = 1000
+    
     loss_track = []
 
     # x (store encoder inputs [source morphological tags + target morphological tags + source word])
@@ -159,7 +161,7 @@ def main():
     # stores encoded forms
     alphabet_and_morph_tags = dict()
 
-    source_data, target_data = read_split_encode_data('teszt2.tsv', alphabet_and_morph_tags, BOS, EOS)
+    source_data, target_data = read_split_encode_data('teszt.tsv', alphabet_and_morph_tags, BOS, EOS)
 
     # Clears the default graph stack and resets the global default graph.
     tf.reset_default_graph() 
@@ -235,14 +237,20 @@ def main():
 
     #create padded inputs for the decoder from the word embeddings
     #were telling the program to test a condition, and trigger an error if the condition is false.
-    assert EOS == 1 and PAD == 0
+    assert EOS == 1 and PAD == 0 and BOS == 2
+
+    bos_time_slice = tf.fill([batch_size], 2, name='BOS')
 
     eos_time_slice = tf.ones([batch_size], dtype=tf.int32, name='EOS')
     pad_time_slice = tf.zeros([batch_size], dtype=tf.int32, name='PAD')
 
+    # send 20 sequences into encoder at one time
+    batch_size = 20
+
     #retrieves rows of the params tensor. The behavior is similar to using indexing with arrays in numpy
     eos_step_embedded = tf.nn.embedding_lookup(embeddings, eos_time_slice)
     pad_step_embedded = tf.nn.embedding_lookup(embeddings, pad_time_slice)
+    bos_step_embedded = tf.nn.embedding_lookup(embeddings, bos_time_slice)
 
     #manually specifying loop function through time - to get initial cell state and input to RNN
     #normally we'd just use dynamic_rnn, but lets get detailed here with raw_rnn
@@ -251,7 +259,10 @@ def main():
     def loop_fn_initial():
         initial_elements_finished = (0 >= decoder_lengths)  # all False at the initial step
         #end of sentence
-        initial_input = eos_step_embedded
+        # -------------
+        #initial_input = eos_step_embedded
+        initial_input = bos_step_embedded
+        # -------------
         #last time steps cell state
         initial_cell_state = encoder_final_state
         #none
@@ -281,6 +292,7 @@ def main():
             prediction = tf.argmax(output_logits, axis=1)
             #embed prediction for the next input
             next_input = tf.nn.embedding_lookup(embeddings, prediction)
+            
             return next_input
     
     
@@ -352,12 +364,6 @@ def main():
 
     sess.run(tf.global_variables_initializer())
 
-    # send 10 sequences into encoder at one time
-    batch_size = 20
-
-
-
-
     def next_feed(batch_num, source_batches, target_batches):
         # get transpose of source_batches[batch_num]
         encoder_inputs_, encoder_input_lengths_ = helpers.batch(source_batches[batch_num])
@@ -368,7 +374,7 @@ def main():
         # target word is max character_changing_num character longer than source word 
         # get transpose of target_batches[i] and put an EOF and PAD at the end
         decoder_targets_, _ = helpers.batch(
-            [(sequence) + [EOS] + [PAD] * ((max_input_length + character_changing_num -1) - len(sequence))  for sequence in target_batches[batch_num]]
+            [(sequence) + [EOS] + [PAD] * ((max_input_length + character_changing_num - 1) - len(sequence))  for sequence in target_batches[batch_num]]
         )
    
         return {
@@ -380,7 +386,6 @@ def main():
 
 
     try:
-        epoch = 1000
         for epoch_num in range(epoch):
             # get every batches and train the model on it
             print('Epoch:',epoch_num)
