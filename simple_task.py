@@ -158,7 +158,7 @@ embeddings = tf.Variable(tf.random_uniform([vocab_size, input_embedding_size], -
 encoder_inputs_embedded = tf.nn.embedding_lookup(embeddings, encoder_inputs)
 
 # define encoder
-encoder_cell = tf.contrib.rnn.LSTMCell(encoder_hidden_units)
+encoder_cell = tf.contrib.rnn.GRUCell(encoder_hidden_units)
 
 # define bidirectionel function of encoder (backpropagation)
 ((encoder_fw_outputs,
@@ -175,10 +175,15 @@ encoder_cell = tf.contrib.rnn.LSTMCell(encoder_hidden_units)
 #Concatenates tensors along one dimension.
 encoder_outputs = tf.concat((encoder_fw_outputs, encoder_bw_outputs), 2)
 
+# because by GRUCells the state is a Tensor, not a Tuple like by LSTMCells
+encoder_final_state = tf.concat(
+        (encoder_fw_final_state, encoder_bw_final_state), 1)
+
 #letters h and c are commonly used to denote "output value" and "cell state". 
 #http://colah.github.io/posts/2015-08-Understanding-LSTMs/ 
 #Those tensors represent combined internal state of the cell, and should be passed together. 
 
+'''
 encoder_final_state_c = tf.concat(
     (encoder_fw_final_state.c, encoder_bw_final_state.c), 1)
 
@@ -190,8 +195,9 @@ encoder_final_state = tf.contrib.rnn.LSTMStateTuple(
     c=encoder_final_state_c,
     h=encoder_final_state_h
 )
+'''
 
-decoder_cell = tf.contrib.rnn.LSTMCell(decoder_hidden_units)
+decoder_cell = tf.contrib.rnn.GRUCell(decoder_hidden_units)
 
 #we could print this, won't need
 encoder_max_time, batch_size = tf.unstack(tf.shape(encoder_inputs))
