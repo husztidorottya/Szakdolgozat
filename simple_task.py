@@ -3,86 +3,135 @@ import numpy as np
 import helpers
 import operator
 
+# create (source morphological tags + target morphological tags + source/target word) sequence
+def create_sequence(data_line_, word_index, BOS, EOS):
+    sequence = []
+    
+    # task 2
+    if len(data_line_) == 4:
+        # source and target morphological tags are appended only to the input
+        if word_index != 3:
+            for i in data_line_[0]:
+                sequence.append(i)
+            
+            for i in data_line_[2]:
+                sequence.append(i)
+    # task 1,3
+    else:
+        if word_index != 2:
+            # source and target morphological tags are appended only to the input
+            for i in data_line_[1]:
+                sequence.append(i)
+        
+    # append beginning of the input
+    sequence.append(BOS)
+
+    for i in data_line_[word_index]:
+        sequence.append(i)
+        
+    # append end of the input
+    sequence.append(EOS)
+        
+    return sequence
+
+
+
+# encoding input data
+def encoding(data, coded_word, alphabet_and_morph_tags):
+    for character in data:
+        index = alphabet_and_morph_tags.setdefault(character, len(alphabet_and_morph_tags) + 3)
+        coded_word.append(index)
+        
+    return coded_word
+
+
+
+def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
+    # read, split and encode input data
+    with open(filename,'r') as input_file:
+        source_data = []
+        target_data = []
+        idx = 0
+        # read it line-by-line
+        for line in input_file:
+            data_line_ = line.strip('\n').split('\t')
+        
+            # encode words into vector of ints 
+            for item in range(0,len(data_line_)):         
+                # contains encoded form of word
+                coded_word = []
+            
+                # task 2
+                if len(data_line_) == 4:
+                    if item == 1 or item == 3:
+                        # encode source and target word
+                        coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
+                    else:
+                        # split morphological tags
+                        tags = data_line_[item].split(',')
+                
+                        coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
+                # task 1,3
+                else:
+                    if item == 1:
+                        # split morphological tags
+                        tags = data_line_[item].split(',')
+                
+                        coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
+                    else:
+                        # encode source and target word
+                        coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
+                        
+                # store encoded form
+                data_line_[item] = coded_word
+        
+            # defines source and target words' index
+            source_idx = len(data_line_) - 3
+            target_idx = len(data_line_) - 1 
+        
+            # store encoder input task 2:(source morphological tags + target morphological tags + source word)
+            # task 1,3: (source/target morphological tags + source word)
+            source_data.append([create_sequence(data_line_, source_idx, BOS, EOS), idx])
+        
+            # store decoder expected outputs:(target word)
+            target_data.append(create_sequence(data_line_, target_idx, BOS, EOS))
+        
+            # stores line number (needed for shuffle) - reference for the target_data
+            idx += 1
+
+    return source_data, target_data
+
+
+
 # GLOBAL CONTANTS
+BOS = 2
 PAD = 0
 EOS = 1
 character_changing_num = 10
-max_batches = 3001
 batches_in_epoch = 20
-# send 10 sequences into encoder at one time
-batch_size = 20
 
 # x (store encoder inputs [source morphological tags + target morphological tags + source word])
 source_data = []
 # y (store decoder expected outputs [source morphological tags + target morphological tags + target word])      
 target_data = []
 
-# character encodings
-alphabet = dict()
+# stores encoded forms
+alphabet_and_morph_tags = dict()
 
-# source and target morphological tag encodings
-morphological_tags = dict()
+source_data, target_data = read_split_encode_data('teszt.tsv', alphabet_and_morph_tags, BOS, EOS)
 
-# create (source morphological tags + target morphological tags + source/target word) sequence
-def create_sequence(data_line_, word_index):
-    sequence = []
-    
-    for i in data_line_[0]:
-        sequence.append(i)
-            
-    for i in data_line_[2]:
-        sequence.append(i)
-        
-    for i in data_line_[word_index]:
-        sequence.append(i)
-        
-    return sequence
-    
-
-# read, split and encode input data
-with open('teszt.tsv','r') as input_file:
-    # read it line-by-line
-    for line in input_file:
-        data_line_ = line.strip('\n').split('\t')
-        
-        # encode words into vector of ints 
-        for item in range(0,4):         
-            # contains encoded form of word
-            coded_word = []
-            
-            if item == 1 or item == 3:
-                # encode source and target word
-                for character in data_line_[item]:
-                    index = alphabet.setdefault(character, len(alphabet) + 2)
-                    coded_word.append(index)
-            else:
-                # split morphological tags
-                tags = data_line_[item].split(',')
-                
-                # encode morphological tags
-                for tag in tags:
-                    index = morphological_tags.setdefault(tag, len(morphological_tags) + 2)
-                    coded_word.append(index)
-            
-            # store encoded form
-            data_line_[item] = coded_word
-        
-        # store encoder input (source morphological tags + target morphological tags + source word)
-        source_data.append(create_sequence(data_line_, 1))
-        
-        # store decoder expected outputs (source morphological tags + target morphological tags + target word)
-        target_data.append(create_sequence(data_line_, 3))
 
 # Clears the default graph stack and resets the global default graph.
 tf.reset_default_graph() 
 # initializes a tensorflow session
 sess = tf.InteractiveSession() 
 
-max_alphabet = alphabet[max(alphabet.items(), key=operator.itemgetter(1))[0]]
-max_morphological_tags = morphological_tags[max(morphological_tags.items(), key=operator.itemgetter(1))[0]]
+# get max value of encoded forms
+max_alphabet_and_morph_tags = alphabet_and_morph_tags[max(alphabet_and_morph_tags.items(), key=operator.itemgetter(1))[0]]
 
-# calculate vocab_size (max(alphabet,morphological_tags))
-vocab_size = max([max_alphabet, max_morphological_tags]) + 1
+# calculate vocab_size
+vocab_size = max_alphabet_and_morph_tags + 1
+
 #character length
 input_embedding_size = 300 
 
@@ -275,31 +324,47 @@ train_op = tf.train.AdamOptimizer().minimize(loss)
 sess.run(tf.global_variables_initializer())
 
 # send 10 sequences into encoder at one time
-batch_size = 10
+batch_size = 20
 
 # create batches with size of batch_size
 def create_batches(data, batch_size):
     # stores batches
-    batches = []
-    # stores last batch beginning index
-    prev_batch_begin = 0
+    source_batches = []
+    target_batches = []
+    # stores last batch ending index
+    prev_batch_end = 0
     
-    for j in range(0, len(data)):
-        if j % batch_size ==0 and j != 0:
-            batches.append(data[prev_batch_begin:j])
-            prev_batch_begin = j
+    for j in range(0, len(source_data)):
+        if j % batch_size == 0 and j != 0:
+            # stores a batch
+            sbatch = []
+            tbatch = []
+            for k in range(prev_batch_end+1,j+1):
+                # store sequence
+                sbatch.append(source_data[k][0])
+                # store expected target_data (know from source_data index)
+                tbatch.append(target_data[source_data[k][1]])
+            # add created batch
+            source_batches.append(sbatch)
+            target_batches.append(tbatch)
+            prev_batch_end = j
             
     # put the rest of it in another batch
-    if prev_batch_begin != j:
-        batches.append(data[prev_batch_begin:j])
+    if prev_batch_end != j:
+        sbatch = []
+        tbatch = []
+        for k in range(prev_batch_end+1,j):
+            sbatch.append(source_data[k][0])
+            tbatch.append(target_data[source_data[k][1]])
+        source_batches.append(sbatch)
+        target_batches.append(tbatch)
         
-    return batches
+    return source_batches, target_batches
 
 # encoder inputs devided into batches
-source_batches = create_batches(source_data, batch_size)
+source_batches , target_batches= create_batches(source_data, batch_size)
 
-# decoder targets devided into batches
-target_batches = create_batches(target_data, batch_size)
+
 
 def next_feed(batch_num, source_batches, target_batches):
     # get transpose of source_batches[batch_num]
@@ -326,6 +391,7 @@ try:
     epoch = 100
     for epoch_num in range(epoch):
         # get every batches and train the model on it
+        print('Epoch:',epoch_num)
         for batch_num in range(0, len(source_batches)):
             fd = next_feed(batch_num, source_batches, target_batches)
    
