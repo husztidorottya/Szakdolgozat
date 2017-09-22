@@ -6,33 +6,20 @@ import random
 
 
 # create (source morphological tags + target morphological tags + source/target word) sequence
-def create_sequence(data_line_, word_index, BOS, EOS):
+def create_sequence(data_line_, word_index, parameters):
     sequence = []
     
-    '''
-    # task 2
-    if len(data_line_) == 4:
-        # source and target morphological tags are appended only to the input
-        if word_index != 3:
-            for i in data_line_[2]:
-                sequence.append(i)
-    # task 1,3
-    else:
-    '''
     if word_index != 1:
         # source and target morphological tags are appended only to the input
         for i in data_line_[2]:
             sequence.append(i)
         
     # append beginning of the input
-    sequence.append(BOS)
+    sequence.append(parameters.BOS)
 
     for i in data_line_[word_index]:
         sequence.append(i)
-        
-    # append end of the input
-    #sequence.append(EOS)
-        
+             
     return sequence
 
 
@@ -45,7 +32,7 @@ def encoding(data, coded_word, alphabet_and_morph_tags):
     return coded_word
 
 
-def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
+def read_split_encode_data(filename, alphabet_and_morph_tags, parameters):
     # read, split and encode input data
     with open(filename,'r') as input_file:
         source_data = []
@@ -60,20 +47,6 @@ def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
                 # contains encoded form of word
                 coded_word = []
             
-                '''
-                # task 2
-                if len(data_line_) == 4:
-                    if item == 1 or item == 3:
-                        # encode source and target word
-                        coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
-                    else:
-                        # split morphological tags
-                        tags = data_line_[item].split(';')
-                
-                        coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
-                # task 1,3
-                else:
-                '''
                 if item == 2:
                     # split morphological tags
                     tags = data_line_[item].split(';')
@@ -92,10 +65,10 @@ def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
         
             # store encoder input task 2:(source morphological tags + target morphological tags + source word)
             # task 1,3: (source/target morphological tags + source word)
-            source_data.append([create_sequence(data_line_, source_idx, BOS, EOS), idx])
+            source_data.append([create_sequence(data_line_, source_idx, parameters), idx])
         
             # store decoder expected outputs:(target word)
-            target_data.append(create_sequence(data_line_, target_idx, BOS, EOS))
+            target_data.append(create_sequence(data_line_, target_idx, parameters))
         
             # stores line number (needed for shuffle) - reference for the target_data
             idx += 1
@@ -104,7 +77,7 @@ def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
 
 
 # create batches with size of batch_size
-def create_batches(source_data, target_data, batch_size):
+def create_batches(source_data, target_data, parameters):
     # stores batches
     source_batches = []
     target_batches = []
@@ -112,7 +85,7 @@ def create_batches(source_data, target_data, batch_size):
     prev_batch_end = 0
     
     for j in range(0, len(source_data)):
-        if j % batch_size == 0 and j != 0:
+        if j % parameters.batch_size == 0 and j != 0:
             # stores a batch
             sbatch = []
             tbatch = []
@@ -138,7 +111,8 @@ def create_batches(source_data, target_data, batch_size):
         
     return source_batches, target_batches
 
-def next_feed(batch_num, source_batches, target_batches, EOS, PAD, character_changing_num, encoder_inputs, encoder_inputs_length, decoder_targets):
+
+def next_feed(source_batches, target_batches, encoder_inputs, encoder_inputs_length, decoder_targets, batch_num, parameters):
         # get transpose of source_batches[batch_num]
         encoder_inputs_, encoder_input_lengths_ = helpers.batch(source_batches[batch_num])
     
@@ -148,7 +122,7 @@ def next_feed(batch_num, source_batches, target_batches, EOS, PAD, character_cha
         # target word is max character_changing_num character longer than source word 
         # get transpose of target_batches[i] and put an EOF and PAD at the end
         decoder_targets_, _ = helpers.batch(
-            [(sequence) + [EOS] + [PAD] * ((max_input_length + character_changing_num - 1) - len(sequence))  for sequence in target_batches[batch_num]]
+            [(sequence) + [parameters.EOS] + [parameters.PAD] * ((max_input_length + parameters.character_changing_num - 1) - len(sequence))  for sequence in target_batches[batch_num]]
         )
    
         return {
@@ -158,19 +132,62 @@ def next_feed(batch_num, source_batches, target_batches, EOS, PAD, character_cha
         }
 
 
+def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters):
+    saver = tf.train.Saver()
+
+    for epoch_num in range(parameters.epoch):
+            # get every batches and train the model on it
+            print('Epoch:',epoch_num)
+
+            # shuffle it in every epoch for creating random batches
+            source_data = random.sample(source_data, len(source_data))
+        
+            # encoder inputs and decoder outputs devided into batches
+            source_batches, target_batches = create_batches(source_data, target_data, parameters)
+
+            for batch_num in range(0, len(source_batches)):
+                fd = next_feed(source_batches, target_batches, encoder_inputs, encoder_inputs_length, decoder_targets, batch_num, parameters)
+   
+                _, l = sess.run([train_op, loss], fd)
+                loss_track.append(l)
+        
+                if batch_num == 0 or batch_num % parameters.batches_in_epoch == 0: 
+                    print('batch {}'.format(batch_num))
+                    print('  minibatch loss: {}'.format(sess.run(loss, fd)))
+                    predict_ = sess.run(decoder_prediction, fd)
+                    for i, (inp, pred) in enumerate(zip(fd[decoder_targets].T, predict_.T)):
+                        print('  sample {}:'.format(i + 1))
+                        print('    input     > {}'.format(inp))
+                        print('    predicted > {}'.format(pred))
+                        if i >= 2:
+                            break
+                    print()
+    # save the model
+    saver.save(sess, 'my_test_model')
+    sess.close()
+    return
+
+
+# class stores model parameters
+class Parameters:
+
+   def __init__(self, BOS, EOS, PAD, character_changing_num, batches_in_epoch, input_embedding_size, neuron_num, epoch):
+      self.BOS = BOS
+      self.EOS = EOS
+      self.PAD = PAD
+      self.character_changing_num = character_changing_num
+      self.batches_in_epoch = batches_in_epoch
+      self.input_embedding_size = input_embedding_size
+      self.neuron_num = neuron_num
+      self.epoch = epoch
+      
+
+
 def main():
 
     # GLOBAL CONTANTS
-    BOS = 2
-    PAD = 0
-    EOS = 1
-    character_changing_num = 10
-    batches_in_epoch = 100
-    #character length
-    input_embedding_size = 300 
-    neuron_num =100
-    epoch = 100
-    
+    parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 100)
+
     loss_track = []
 
     # x (store encoder inputs [source morphological tags + target morphological tags + source word])
@@ -181,7 +198,42 @@ def main():
     # stores encoded forms
     alphabet_and_morph_tags = dict()
 
-    source_data, target_data = read_split_encode_data('task1_inferencia.tsv', alphabet_and_morph_tags, BOS, EOS)
+    source_data, target_data = read_split_encode_data('teszt2_uj.tsv', alphabet_and_morph_tags, parameters)
+
+    # ---------------
+    input_word = input('Give me some inference exercise: e.g.: "őrbódé\tN;IN+ABL;PL"')
+    split_input = input_word.split('\t')
+    word = split_input[0]
+    tags = split_input[1].split(';')
+    #word = 'őrbódé'
+    #tags = ['N', 'IN+ABL', 'PL']
+    target = 'őrbódékból'
+
+    data = []
+    # stores encoded forms
+    coded_word = []
+    data.append(encoding(tags, coded_word, alphabet_and_morph_tags))
+    coded_word = []
+    data.append(encoding(word, coded_word, alphabet_and_morph_tags))
+
+    sdata = []
+
+    for i in data:
+        sdata.append(parameters.BOS)
+        for k in i:
+            sdata.append(k)
+    sdata.append(parameters.EOS)
+
+    coded_word = []
+    data = []
+    data = (encoding(target, coded_word, alphabet_and_morph_tags))
+    tdata = []
+    tdata.append(parameters.BOS)
+    for i in data:    
+        tdata.append(i)
+    tdata.append(parameters.EOS)
+    # ----------------------
+
 
     # Clears the default graph stack and resets the global default graph.
     tf.reset_default_graph() 
@@ -192,10 +244,10 @@ def main():
     max_alphabet_and_morph_tags = alphabet_and_morph_tags[max(alphabet_and_morph_tags.items(), key=operator.itemgetter(1))[0]]
 
     # calculate vocab_size
-    vocab_size = max_alphabet_and_morph_tags + 2
+    vocab_size = max_alphabet_and_morph_tags + 1
 
     # num neurons
-    encoder_hidden_units = neuron_num 
+    encoder_hidden_units = parameters.neuron_num 
     # in original paper, they used same number of neurons for both encoder
     # and decoder, but we use twice as many so decoded output is different, the target value is the original input 
     #in this example
@@ -211,7 +263,7 @@ def main():
     # randomly initialized embedding matrrix that can fit input sequence
     # used to convert sequences to vectors (embeddings) for both encoder and decoder of the right size
     # reshaping is a thing, in TF you gotta make sure you tensors are the right shape (num dimensions)
-    embeddings = tf.Variable(tf.random_uniform([vocab_size, input_embedding_size], -1.0, 1.0), dtype=tf.float32)
+    embeddings = tf.Variable(tf.random_uniform([vocab_size, parameters.input_embedding_size], -1.0, 1.0), dtype=tf.float32)
     #embeddings = tf.Variable(tf.eye(vocab_size, input_embedding_size), dtype='float32')
 
     # this thing could get huge in a real world application
@@ -243,9 +295,9 @@ def main():
     decoder_cell = tf.contrib.rnn.GRUCell(decoder_hidden_units)
 
     #we could print this, won't need
-    encoder_max_time, batch_size = tf.unstack(tf.shape(encoder_inputs))
+    encoder_max_time, parameters.batch_size = tf.unstack(tf.shape(encoder_inputs))
 
-    decoder_lengths = encoder_inputs_length + character_changing_num
+    decoder_lengths = encoder_inputs_length + parameters.character_changing_num
     # +(character_changing_num-1) additional steps, +1 leading <EOS> token for decoder inputs
 
     #manually specifying since we are going to implement attention details for the decoder in a sec
@@ -257,14 +309,14 @@ def main():
 
     #create padded inputs for the decoder from the word embeddings
     #were telling the program to test a condition, and trigger an error if the condition is false.
-    assert EOS == 1 and PAD == 0 and BOS == 2
+    assert parameters.EOS == 1 and parameters.PAD == 0 and parameters.BOS == 2
 
-    bos_time_slice = tf.fill([batch_size], 2, name='BOS')
-    eos_time_slice = tf.ones([batch_size], dtype=tf.int32, name='EOS')
-    pad_time_slice = tf.zeros([batch_size], dtype=tf.int32, name='PAD')
+    bos_time_slice = tf.fill([parameters.batch_size], 2, name='BOS')
+    eos_time_slice = tf.ones([parameters.batch_size], dtype=tf.int32, name='EOS')
+    pad_time_slice = tf.zeros([parameters.batch_size], dtype=tf.int32, name='PAD')
 
     # send 20 sequences into encoder at one time
-    batch_size = 20
+    parameters.batch_size = 20
 
     #retrieves rows of the params tensor. The behavior is similar to using indexing with arrays in numpy
     bos_step_embedded = tf.nn.embedding_lookup(embeddings, bos_time_slice)
@@ -380,73 +432,15 @@ def main():
 
     sess.run(tf.global_variables_initializer())
 
-    saver = tf.train.Saver()
-
     try:
-        for epoch_num in range(epoch):
-            # get every batches and train the model on it
-            print('Epoch:',epoch_num)
-
-            # shuffle it in every epoch for creating random batches
-            source_data = random.sample(source_data, len(source_data))
         
-            # encoder inputs and decoder outputs devided into batches
-            source_batches, target_batches = create_batches(source_data, target_data, batch_size)
+        train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters)
 
-            for batch_num in range(0, len(source_batches)):
-                fd = next_feed(batch_num, source_batches, target_batches, EOS, PAD, character_changing_num, encoder_inputs, encoder_inputs_length, decoder_targets)
-   
-                _, l = sess.run([train_op, loss], fd)
-                loss_track.append(l)
-        
-                if batch_num == 0 or batch_num % batches_in_epoch == 0:
-                    print('batch {}'.format(batch_num))
-                    print('  minibatch loss: {}'.format(sess.run(loss, fd)))
-                    predict_ = sess.run(decoder_prediction, fd)
-                    for i, (inp, pred) in enumerate(zip(fd[decoder_targets].T, predict_.T)):
-                        print('  sample {}:'.format(i + 1))
-                        print('    input     > {}'.format(inp))
-                        print('    predicted > {}'.format(pred))
-                        if i >= 2:
-                            break
-                    print()
+        sess=tf.InteractiveSession()    
+        #First let's load meta graph and restore weights
+        saver = tf.train.import_meta_graph('my_test_model.meta')
+        saver.restore(sess, tf.train.latest_checkpoint('./'))
 
-
-        # ---------------
-        word = 'őrbódé'
-        tags = ['N', 'IN+ABL', 'PL']
-        target = 'őrbódékból'
-
-        data = []
-        # stores encoded forms
-        coded_word = []
-        data.append(encoding(tags, coded_word, alphabet_and_morph_tags))
-        coded_word = []
-        data.append(encoding(word, coded_word, alphabet_and_morph_tags))
-
-        sdata = []
-
-        for i in data:
-            sdata.append(BOS)
-            for k in i:
-                sdata.append(k)
-            sdata.append(EOS)
-
-        coded_word = []
-        data = []
-        data = (encoding(target, coded_word, alphabet_and_morph_tags))
-        tdata = []
-        tdata.append(BOS)
-        for i in data:    
-            tdata.append(i)
-        tdata.append(EOS)
-
-
-        print(alphabet_and_morph_tags[max(alphabet_and_morph_tags.items(), key=operator.itemgetter(1))[0]]
-)
-
-        # ---------------
-        #Now, save the graph
         encoder_inputs_, encoder_input_lengths_ = helpers.batch([sdata])
     
         predict_ = sess.run(decoder_prediction, feed_dict={
@@ -457,13 +451,10 @@ def main():
         print('elvart:',tdata)
         print('predict:',predict_.T)
 
-        saver.save(sess, 'my_test_model')
         
-
     except KeyboardInterrupt:
         print('training interrupted')
 
+
 if __name__ == '__main__':
     main()
-
-
