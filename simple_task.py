@@ -169,7 +169,7 @@ def main():
     #character length
     input_embedding_size = 300 
     neuron_num =100
-    epoch = 1000
+    epoch = 100
     
     loss_track = []
 
@@ -181,7 +181,7 @@ def main():
     # stores encoded forms
     alphabet_and_morph_tags = dict()
 
-    source_data, target_data = read_split_encode_data('task1.tsv', alphabet_and_morph_tags, BOS, EOS)
+    source_data, target_data = read_split_encode_data('task1_inferencia.tsv', alphabet_and_morph_tags, BOS, EOS)
 
     # Clears the default graph stack and resets the global default graph.
     tf.reset_default_graph() 
@@ -192,7 +192,7 @@ def main():
     max_alphabet_and_morph_tags = alphabet_and_morph_tags[max(alphabet_and_morph_tags.items(), key=operator.itemgetter(1))[0]]
 
     # calculate vocab_size
-    vocab_size = max_alphabet_and_morph_tags + 1
+    vocab_size = max_alphabet_and_morph_tags + 2
 
     # num neurons
     encoder_hidden_units = neuron_num 
@@ -380,7 +380,7 @@ def main():
 
     sess.run(tf.global_variables_initializer())
 
-    saver = tf.train.Saver({'embeddings':embeddings,'W':W,'b':b})
+    saver = tf.train.Saver()
 
     try:
         for epoch_num in range(epoch):
@@ -411,8 +411,54 @@ def main():
                             break
                     print()
 
-        saver.save(sess, 'my_train_model')
-        sess.close()
+
+        # ---------------
+        word = 'őrbódé'
+        tags = ['N', 'IN+ABL', 'PL']
+        target = 'őrbódékból'
+
+        data = []
+        # stores encoded forms
+        coded_word = []
+        data.append(encoding(tags, coded_word, alphabet_and_morph_tags))
+        coded_word = []
+        data.append(encoding(word, coded_word, alphabet_and_morph_tags))
+
+        sdata = []
+
+        for i in data:
+            sdata.append(BOS)
+            for k in i:
+                sdata.append(k)
+            sdata.append(EOS)
+
+        coded_word = []
+        data = []
+        data = (encoding(target, coded_word, alphabet_and_morph_tags))
+        tdata = []
+        tdata.append(BOS)
+        for i in data:    
+            tdata.append(i)
+        tdata.append(EOS)
+
+
+        print(alphabet_and_morph_tags[max(alphabet_and_morph_tags.items(), key=operator.itemgetter(1))[0]]
+)
+
+        # ---------------
+        #Now, save the graph
+        encoder_inputs_, encoder_input_lengths_ = helpers.batch([sdata])
+    
+        predict_ = sess.run(decoder_prediction, feed_dict={
+            encoder_inputs: encoder_inputs_,
+            encoder_inputs_length: encoder_input_lengths_
+        })
+
+        print('elvart:',tdata)
+        print('predict:',predict_.T)
+
+        saver.save(sess, 'my_test_model')
+        
 
     except KeyboardInterrupt:
         print('training interrupted')

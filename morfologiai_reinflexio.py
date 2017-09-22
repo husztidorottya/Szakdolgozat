@@ -9,33 +9,31 @@ import random
 def create_sequence(data_line_, word_index, BOS, EOS):
     sequence = []
     
-    # append beginning of the input
-    sequence.append(BOS)
-    
+    '''
     # task 2
     if len(data_line_) == 4:
         # source and target morphological tags are appended only to the input
         if word_index != 3:
-            for i in data_line_[0]:
-                sequence.append(i)
-            
             for i in data_line_[2]:
                 sequence.append(i)
     # task 1,3
     else:
-        if word_index != 2:
-            # source and target morphological tags are appended only to the input
-            for i in data_line_[1]:
-                sequence.append(i)
+    '''
+    if word_index != 1:
+        # source and target morphological tags are appended only to the input
+        for i in data_line_[2]:
+            sequence.append(i)
         
+    # append beginning of the input
+    sequence.append(BOS)
+
     for i in data_line_[word_index]:
         sequence.append(i)
         
     # append end of the input
-    sequence.append(EOS)
+    #sequence.append(EOS)
         
     return sequence
-
 
 
 # encoding input data
@@ -45,7 +43,6 @@ def encoding(data, coded_word, alphabet_and_morph_tags):
         coded_word.append(index)
         
     return coded_word
-
 
 
 def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
@@ -63,6 +60,7 @@ def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
                 # contains encoded form of word
                 coded_word = []
             
+                '''
                 # task 2
                 if len(data_line_) == 4:
                     if item == 1 or item == 3:
@@ -70,26 +68,27 @@ def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
                         coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
                     else:
                         # split morphological tags
-                        tags = data_line_[item].split(',')
+                        tags = data_line_[item].split(';')
                 
                         coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
                 # task 1,3
                 else:
-                    if item == 1:
-                        # split morphological tags
-                        tags = data_line_[item].split(',')
+                '''
+                if item == 2:
+                    # split morphological tags
+                    tags = data_line_[item].split(';')
                 
-                        coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
-                    else:
-                        # encode source and target word
-                        coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
+                    coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
+                else:
+                    # encode source and target word
+                    coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
                         
                 # store encoded form
                 data_line_[item] = coded_word
         
             # defines source and target words' index
             source_idx = len(data_line_) - 3
-            target_idx = len(data_line_) - 1 
+            target_idx = len(data_line_) - 2 
         
             # store encoder input task 2:(source morphological tags + target morphological tags + source word)
             # task 1,3: (source/target morphological tags + source word)
@@ -102,7 +101,6 @@ def read_split_encode_data(filename, alphabet_and_morph_tags, BOS, EOS):
             idx += 1
 
     return source_data, target_data
-
 
 
 # create batches with size of batch_size
@@ -118,7 +116,7 @@ def create_batches(source_data, target_data, batch_size):
             # stores a batch
             sbatch = []
             tbatch = []
-            for k in range(prev_batch_end+1,j):
+            for k in range(prev_batch_end+1,j+1):
                 # store sequence
                 sbatch.append(source_data[k][0])
                 # store expected target_data (know from source_data index)
@@ -140,10 +138,7 @@ def create_batches(source_data, target_data, batch_size):
         
     return source_batches, target_batches
 
-
-
-# gets next batch and transform it
-def next_feed(batch_num, source_batches, target_batches, character_changing_num, encoder_inputs, encoder_inputs_length, decoder_targets, PAD):
+def next_feed(batch_num, source_batches, target_batches, EOS, PAD, character_changing_num, encoder_inputs, encoder_inputs_length, decoder_targets):
         # get transpose of source_batches[batch_num]
         encoder_inputs_, encoder_input_lengths_ = helpers.batch(source_batches[batch_num])
     
@@ -153,7 +148,7 @@ def next_feed(batch_num, source_batches, target_batches, character_changing_num,
         # target word is max character_changing_num character longer than source word 
         # get transpose of target_batches[i] and put an EOF and PAD at the end
         decoder_targets_, _ = helpers.batch(
-            [(sequence) + [PAD] * ((max_input_length + character_changing_num) - len(sequence))  for sequence in target_batches[batch_num]]
+            [(sequence) + [EOS] + [PAD] * ((max_input_length + character_changing_num - 1) - len(sequence))  for sequence in target_batches[batch_num]]
         )
    
         return {
@@ -163,21 +158,19 @@ def next_feed(batch_num, source_batches, target_batches, character_changing_num,
         }
 
 
-
-# main function
 def main():
 
-    # GLOBAL CONSTANTS
-    PAD = 0
+    # GLOBAL CONTANTS
     BOS = 2
+    PAD = 0
     EOS = 1
     character_changing_num = 10
     batches_in_epoch = 100
     #character length
     input_embedding_size = 300 
-    neuron_num = 100
-    # iteration number during training
-    epoch = 1000
+    neuron_num =100
+    epoch = 100
+    
     loss_track = []
 
     # x (store encoder inputs [source morphological tags + target morphological tags + source word])
@@ -188,7 +181,7 @@ def main():
     # stores encoded forms
     alphabet_and_morph_tags = dict()
 
-    source_data, target_data = read_split_encode_data('task2.tsv', alphabet_and_morph_tags, BOS, EOS)
+    source_data, target_data = read_split_encode_data('task1_inferencia.tsv', alphabet_and_morph_tags, BOS, EOS)
 
     # Clears the default graph stack and resets the global default graph.
     tf.reset_default_graph() 
@@ -199,14 +192,14 @@ def main():
     max_alphabet_and_morph_tags = alphabet_and_morph_tags[max(alphabet_and_morph_tags.items(), key=operator.itemgetter(1))[0]]
 
     # calculate vocab_size
-    vocab_size = max_alphabet_and_morph_tags + 1
+    vocab_size = max_alphabet_and_morph_tags + 2
 
     # num neurons
     encoder_hidden_units = neuron_num 
     # in original paper, they used same number of neurons for both encoder
     # and decoder, but we use twice as many so decoded output is different, the target value is the original input 
     #in this example
-    decoder_hidden_units = encoder_hidden_units * 2
+    decoder_hidden_units = encoder_hidden_units * 2 
 
     # input placehodlers
     encoder_inputs = tf.placeholder(shape=(None, None), dtype=tf.int32, name='encoder_inputs')
@@ -218,9 +211,8 @@ def main():
     # randomly initialized embedding matrrix that can fit input sequence
     # used to convert sequences to vectors (embeddings) for both encoder and decoder of the right size
     # reshaping is a thing, in TF you gotta make sure you tensors are the right shape (num dimensions)
-    #embeddings = tf.Variable(tf.random_uniform([vocab_size, input_embedding_size], -1.0, 1.0), dtype=tf.float32)
-    embeddings = tf.Variable(tf.eye(vocab_size, input_embedding_size, dtype=tf.float32), dtype=tf.float32)
-
+    embeddings = tf.Variable(tf.random_uniform([vocab_size, input_embedding_size], -1.0, 1.0), dtype=tf.float32)
+    #embeddings = tf.Variable(tf.eye(vocab_size, input_embedding_size), dtype='float32')
 
     # this thing could get huge in a real world application
     encoder_inputs_embedded = tf.nn.embedding_lookup(embeddings, encoder_inputs)
@@ -238,19 +230,15 @@ def main():
                                     inputs=encoder_inputs_embedded,
                                     sequence_length=encoder_inputs_length,
                                     dtype=tf.float32, time_major=True)
-    )
+        )
 
     #Concatenates tensors along one dimension.
     encoder_outputs = tf.concat((encoder_fw_outputs, encoder_bw_outputs), 2)
 
-
-    #letters h and c are commonly used to denote "output value" and "cell state". 
-    #http://colah.github.io/posts/2015-08-Understanding-LSTMs/ 
-    #Those tensors represent combined internal state of the cell, and should be passed together. 
-
     # because by GRUCells the state is a Tensor, not a Tuple like by LSTMCells
     encoder_final_state = tf.concat(
         (encoder_fw_final_state, encoder_bw_final_state), 1)
+
 
     decoder_cell = tf.contrib.rnn.GRUCell(decoder_hidden_units)
 
@@ -262,7 +250,8 @@ def main():
 
     #manually specifying since we are going to implement attention details for the decoder in a sec
     #weights
-    W = tf.Variable(tf.eye(decoder_hidden_units, vocab_size,dtype=tf.float32), dtype=tf.float32)
+    W = tf.Variable(tf.random_uniform([decoder_hidden_units, vocab_size], -1, 1), dtype=tf.float32)
+    #W = tf.Variable(tf.eye(decoder_hidden_units, vocab_size), dtype='float32')
     #bias
     b = tf.Variable(tf.zeros([vocab_size]), dtype=tf.float32)
 
@@ -270,7 +259,7 @@ def main():
     #were telling the program to test a condition, and trigger an error if the condition is false.
     assert EOS == 1 and PAD == 0 and BOS == 2
 
-    bos_time_slice = tf.ones([batch_size], dtype=tf.int32, name='BOS')
+    bos_time_slice = tf.fill([batch_size], 2, name='BOS')
     eos_time_slice = tf.ones([batch_size], dtype=tf.int32, name='EOS')
     pad_time_slice = tf.zeros([batch_size], dtype=tf.int32, name='PAD')
 
@@ -281,7 +270,7 @@ def main():
     bos_step_embedded = tf.nn.embedding_lookup(embeddings, bos_time_slice)
     eos_step_embedded = tf.nn.embedding_lookup(embeddings, eos_time_slice)
     pad_step_embedded = tf.nn.embedding_lookup(embeddings, pad_time_slice)
-
+    
     #manually specifying loop function through time - to get initial cell state and input to RNN
     #normally we'd just use dynamic_rnn, but lets get detailed here with raw_rnn
 
@@ -289,7 +278,10 @@ def main():
     def loop_fn_initial():
         initial_elements_finished = (0 >= decoder_lengths)  # all False at the initial step
         #end of sentence
-        initial_input = eos_step_embedded
+        # -------------
+        #initial_input = eos_step_embedded
+        initial_input = bos_step_embedded
+        # -------------
         #last time steps cell state
         initial_cell_state = encoder_final_state
         #none
@@ -319,12 +311,12 @@ def main():
             prediction = tf.argmax(output_logits, axis=1)
             #embed prediction for the next input
             next_input = tf.nn.embedding_lookup(embeddings, prediction)
+            
             return next_input
     
     
         elements_finished = (time >= decoder_lengths) # this operation produces boolean tensor of [batch_size]
                                                   # defining if corresponding sequence has ended
-
     
         #Computes the "logical and" of elements across dimensions of a tensor.
         finished = tf.reduce_all(elements_finished) # -> boolean scalar
@@ -355,8 +347,6 @@ def main():
     #and what to emit for the output.
     #ta = tensor array
     decoder_outputs_ta, decoder_final_state, _ = tf.nn.raw_rnn(decoder_cell, loop_fn)
-    # emiatt nem lehet lefelezni decoder hidden unit számot DE MIÉRT??? (talán azért, mert bidirekciónál a fw és bw is encoder_hidden_units ezért lesz kétszeres)
-
     decoder_outputs = decoder_outputs_ta.stack()
 
     #to convert output to human readable prediction
@@ -373,7 +363,7 @@ def main():
     decoder_logits = tf.reshape(decoder_logits_flat, (decoder_max_steps, decoder_batch_size, vocab_size))
 
     #final prediction
-    decoder_prediction = tf.argmax(decoder_logits, axis=1)
+    decoder_prediction = tf.argmax(decoder_logits, 2)
 
     #cross entropy loss
     #one hot encode the target values so we don't rank just differentiate
@@ -385,44 +375,95 @@ def main():
     #loss function
     loss = tf.reduce_mean(stepwise_cross_entropy)
     #train it 
-    train_op = tf.train.GradientDescentOptimizer(0.001).minimize(loss) # set learning_rate = 0.001
+    #train_op = tf.train.AdamOptimizer().minimize(loss)
+    train_op = tf.train.GradientDescentOptimizer(0.1).minimize(loss) # set learning_rate = 0.001
 
     sess.run(tf.global_variables_initializer())
-    
+
+    saver = tf.train.Saver()
+
     try:
-    
-        for epoch_num in range(0,epoch):
+        for epoch_num in range(epoch):
+            # get every batches and train the model on it
+            print('Epoch:',epoch_num)
+
             # shuffle it in every epoch for creating random batches
             source_data = random.sample(source_data, len(source_data))
         
             # encoder inputs and decoder outputs devided into batches
             source_batches, target_batches = create_batches(source_data, target_data, batch_size)
 
-            # get every batches and train the model on it
             for batch_num in range(0, len(source_batches)):
-                fd = next_feed(batch_num, source_batches, target_batches, character_changing_num, encoder_inputs, encoder_inputs_length, decoder_targets, PAD)
+                fd = next_feed(batch_num, source_batches, target_batches, EOS, PAD, character_changing_num, encoder_inputs, encoder_inputs_length, decoder_targets)
    
                 _, l = sess.run([train_op, loss], fd)
                 loss_track.append(l)
-               
+        
                 if batch_num == 0 or batch_num % batches_in_epoch == 0:
                     print('batch {}'.format(batch_num))
                     print('  minibatch loss: {}'.format(sess.run(loss, fd)))
                     predict_ = sess.run(decoder_prediction, fd)
-                    for i, (inp, pred) in enumerate(zip(fd[encoder_inputs].T, predict_.T)):
+                    for i, (inp, pred) in enumerate(zip(fd[decoder_targets].T, predict_.T)):
                         print('  sample {}:'.format(i + 1))
                         print('    input     > {}'.format(inp))
                         print('    predicted > {}'.format(pred))
                         if i >= 2:
                             break
                     print()
-                
-            
-        sess.close()
+
+
+        # ---------------
+        word = 'őrbódé'
+        tags = ['N', 'IN+ABL', 'PL']
+        target = 'őrbódékból'
+
+        data = []
+        # stores encoded forms
+        coded_word = []
+        data.append(encoding(tags, coded_word, alphabet_and_morph_tags))
+        coded_word = []
+        data.append(encoding(word, coded_word, alphabet_and_morph_tags))
+
+        sdata = []
+
+        for i in data:
+            sdata.append(BOS)
+            for k in i:
+                sdata.append(k)
+            sdata.append(EOS)
+
+        coded_word = []
+        data = []
+        data = (encoding(target, coded_word, alphabet_and_morph_tags))
+        tdata = []
+        tdata.append(BOS)
+        for i in data:    
+            tdata.append(i)
+        tdata.append(EOS)
+
+
+        print(alphabet_and_morph_tags[max(alphabet_and_morph_tags.items(), key=operator.itemgetter(1))[0]]
+)
+
+        # ---------------
+        #Now, save the graph
+        encoder_inputs_, encoder_input_lengths_ = helpers.batch([sdata])
+    
+        predict_ = sess.run(decoder_prediction, feed_dict={
+            encoder_inputs: encoder_inputs_,
+            encoder_inputs_length: encoder_input_lengths_
+        })
+
+        print('elvart:',tdata)
+        print('predict:',predict_.T)
+
+        saver.save(sess, 'my_test_model')
+        
 
     except KeyboardInterrupt:
         print('training interrupted')
 
-
 if __name__ == '__main__':
     main()
+
+
