@@ -3,6 +3,7 @@ import numpy as np
 import helpers
 import operator
 import random
+import argparse
 
 
 # create (source morphological tags + target morphological tags + source/target word) sequence
@@ -132,9 +133,8 @@ def next_feed(source_batches, target_batches, encoder_inputs, encoder_inputs_len
         }
 
 
-def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters):
-    saver = tf.train.Saver()
-
+def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters, saver):
+    
     for epoch_num in range(parameters.epoch):
             # get every batches and train the model on it
             print('Epoch:',epoch_num)
@@ -170,7 +170,6 @@ def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length,
 
 # class stores model parameters
 class Parameters:
-
    def __init__(self, BOS, EOS, PAD, character_changing_num, batches_in_epoch, input_embedding_size, neuron_num, epoch):
       self.BOS = BOS
       self.EOS = EOS
@@ -180,7 +179,6 @@ class Parameters:
       self.input_embedding_size = input_embedding_size
       self.neuron_num = neuron_num
       self.epoch = epoch
-      
 
 
 def main():
@@ -198,43 +196,14 @@ def main():
     # stores encoded forms
     alphabet_and_morph_tags = dict()
 
-    source_data, target_data = read_split_encode_data('teszt2_uj.tsv', alphabet_and_morph_tags, parameters)
+    # read from command line
+    parser = argparse.ArgumentParser()
+    parser.add_argument('filename')
+    args = parser.parse_args()
 
-    # ---------------
-    input_word = input('Give me some inference exercise: e.g.: "őrbódé\tN;IN+ABL;PL"')
-    split_input = input_word.split('\t')
-    word = split_input[0]
-    tags = split_input[1].split(';')
-    #word = 'őrbódé'
-    #tags = ['N', 'IN+ABL', 'PL']
-    target = 'őrbódékból'
+    source_data, target_data = read_split_encode_data(args.filename, alphabet_and_morph_tags, parameters)
 
-    data = []
-    # stores encoded forms
-    coded_word = []
-    data.append(encoding(tags, coded_word, alphabet_and_morph_tags))
-    coded_word = []
-    data.append(encoding(word, coded_word, alphabet_and_morph_tags))
-
-    sdata = []
-
-    for i in data:
-        sdata.append(parameters.BOS)
-        for k in i:
-            sdata.append(k)
-    sdata.append(parameters.EOS)
-
-    coded_word = []
-    data = []
-    data = (encoding(target, coded_word, alphabet_and_morph_tags))
-    tdata = []
-    tdata.append(parameters.BOS)
-    for i in data:    
-        tdata.append(i)
-    tdata.append(parameters.EOS)
-    # ----------------------
-
-
+    
     # Clears the default graph stack and resets the global default graph.
     tf.reset_default_graph() 
     # initializes a tensorflow session
@@ -263,7 +232,7 @@ def main():
     # randomly initialized embedding matrrix that can fit input sequence
     # used to convert sequences to vectors (embeddings) for both encoder and decoder of the right size
     # reshaping is a thing, in TF you gotta make sure you tensors are the right shape (num dimensions)
-    embeddings = tf.Variable(tf.random_uniform([vocab_size, parameters.input_embedding_size], -1.0, 1.0), dtype=tf.float32)
+    embeddings = tf.Variable(tf.random_uniform([vocab_size, parameters.input_embedding_size], -1.0, 1.0), dtype=tf.float32, name='embeddings')
     #embeddings = tf.Variable(tf.eye(vocab_size, input_embedding_size), dtype='float32')
 
     # this thing could get huge in a real world application
@@ -302,10 +271,10 @@ def main():
 
     #manually specifying since we are going to implement attention details for the decoder in a sec
     #weights
-    W = tf.Variable(tf.random_uniform([decoder_hidden_units, vocab_size], -1, 1), dtype=tf.float32)
+    W = tf.Variable(tf.random_uniform([decoder_hidden_units, vocab_size], -1, 1), dtype=tf.float32, name='W')
     #W = tf.Variable(tf.eye(decoder_hidden_units, vocab_size), dtype='float32')
     #bias
-    b = tf.Variable(tf.zeros([vocab_size]), dtype=tf.float32)
+    b = tf.Variable(tf.zeros([vocab_size]), dtype=tf.float32, name='b')
 
     #create padded inputs for the decoder from the word embeddings
     #were telling the program to test a condition, and trigger an error if the condition is false.
@@ -434,23 +403,22 @@ def main():
 
     try:
         
-        train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters)
+        saver = tf.train.Saver()
 
-        sess=tf.InteractiveSession()    
-        #First let's load meta graph and restore weights
-        saver = tf.train.import_meta_graph('my_test_model.meta')
-        saver.restore(sess, tf.train.latest_checkpoint('./'))
+        train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters,saver)
 
-        encoder_inputs_, encoder_input_lengths_ = helpers.batch([sdata])
-    
-        predict_ = sess.run(decoder_prediction, feed_dict={
-            encoder_inputs: encoder_inputs_,
-            encoder_inputs_length: encoder_input_lengths_
-        })
+        # write out vocab, because needed at inference script
+        with open('alphabet_and_morph_tags.tsv','w') as outputfile:
+            for k,v in alphabet_and_morph_tags.items():
+                outputfile.write('{}\t{}\n'.format(k,v))
+        '''
+        variables_names =[v.name for v in tf.trainable_variables()]
+        values = sess.run(variables_names)
+        for k,v in zip(variables_names, values):
+            print(k, v)
 
-        print('elvart:',tdata)
-        print('predict:',predict_.T)
-
+        print(W.eval())
+        '''
         
     except KeyboardInterrupt:
         print('training interrupted')
