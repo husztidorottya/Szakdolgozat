@@ -76,9 +76,13 @@ for i in data:
 tdata.append(parameters.EOS)
 # ----------------------
 
-
+tf.reset_default_graph() 
+  
 with tf.Session() as sess:
 	sess.run(tf.global_variables_initializer())
+
+	print(sess.run(tf.report_uninitialized_variables()))
+	
 
 	#First let's load meta graph and restore 
 	saver = tf.train.import_meta_graph('my_test_model.meta')
@@ -97,10 +101,14 @@ with tf.Session() as sess:
 	#in this example
 	decoder_hidden_units = encoder_hidden_units * 2 
 
+
+
 	encoder_inputs = sess.graph.get_tensor_by_name("encoder_inputs:0")
 	# contains the lengths for each of the sequence in the batch, we will pad so all the same
 	# if you don't want to pad, check out dynamic memory networks to input variable length sequences
 	encoder_inputs_length = sess.graph.get_tensor_by_name("encoder_inputs_length:0")
+
+
 
 	# randomly initialized embedding matrrix that can fit input sequence
 	# used to convert sequences to vectors (embeddings) for both encoder and decoder of the right size
@@ -108,6 +116,7 @@ with tf.Session() as sess:
 	#embeddings = tf.Variable(tf.random_uniform([vocab_size, parameters.input_embedding_size], -1.0, 1.0), dtype=tf.float32, name='embeddings')
 	embeddings = sess.graph.get_tensor_by_name('embeddings:0')
 	#embeddings = tf.Variable(tf.eye(vocab_size, input_embedding_size), dtype='float32')
+
 
 	# this thing could get huge in a real world application
 	encoder_inputs_embedded = tf.nn.embedding_lookup(embeddings, encoder_inputs)
@@ -127,6 +136,10 @@ with tf.Session() as sess:
                                     dtype=tf.float32, time_major=True)
 	)
 
+	# ITT JÖN AZ ELSŐ HIBA, HOGY INITIALIZÁLATLAN weights_1, biases_1
+	print(sess.run(tf.report_uninitialized_variables()))
+	
+
 	#Concatenates tensors along one dimension.
 	encoder_outputs = tf.concat((encoder_fw_outputs, encoder_bw_outputs), 2)
 
@@ -142,10 +155,11 @@ with tf.Session() as sess:
 	decoder_lengths = encoder_inputs_length + parameters.character_changing_num
 	# +(character_changing_num-1) additional steps, +1 leading <EOS> token for decoder inputs
 
+	
 	#manually specifying since we are going to implement attention details for the decoder in a sec
 	#weights
 	W = sess.graph.get_tensor_by_name("W:0")
-	print(W.eval())
+	#print(W.eval())
 	b = sess.graph.get_tensor_by_name("b:0")
 
 	#create padded inputs for the decoder from the word embeddings
