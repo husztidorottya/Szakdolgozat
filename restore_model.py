@@ -101,8 +101,6 @@ with tf.Session() as sess:
 	#in this example
 	decoder_hidden_units = encoder_hidden_units * 2 
 
-
-
 	encoder_inputs = sess.graph.get_tensor_by_name("encoder_inputs:0")
 	# contains the lengths for each of the sequence in the batch, we will pad so all the same
 	# if you don't want to pad, check out dynamic memory networks to input variable length sequences
@@ -124,6 +122,21 @@ with tf.Session() as sess:
 	# define encoder
 	encoder_cell = tf.contrib.rnn.GRUCell(encoder_hidden_units)
 
+
+	no_suffix = []
+	for v in tf.trainable_variables():
+		no_suffix.append(v)
+
+	no_suffix_rnn = []
+
+	for v in no_suffix:
+		if v.name.find('rnn/gru_cell/') != -1:
+			no_suffix_rnn.append(v)
+
+	#for v in no_suffix:
+	#	print(v.name)
+
+	# EZ A SZAR LÉTREHOZ EGY SUFFIXES INITIALITÁLATLAN VÁLTOZATOT, FELÜL KELL CSAPNI
 	# define bidirectionel function of encoder (backpropagation)
 	((encoder_fw_outputs,
 	encoder_bw_outputs),
@@ -137,9 +150,31 @@ with tf.Session() as sess:
 	)
 
 	# ITT JÖN AZ ELSŐ HIBA, HOGY INITIALIZÁLATLAN weights_1, biases_1
-	print(sess.run(tf.report_uninitialized_variables()))
+	#print(sess.run(tf.report_uninitialized_variables()))
 	
 
+	suffix = []
+	
+	for v in tf.trainable_variables():
+		if v.name.find('_1') != -1:
+			suffix.append(v)
+
+
+	for i in range(len(suffix)):
+		assign_op = suffix[i].assign(no_suffix[i+1])
+		sess.run(assign_op)
+		
+	j = 0
+	for i in range(len(tf.trainable_variables())):
+		if tf.trainable_variables()[i].name.find('_1') != -1:
+			#print(tf.trainable_variables()[i])
+			#print(suffix[j])
+			sess.run(tf.trainable_variables()[i].assign(suffix[j]))	
+			j += 1
+
+
+
+	
 	#Concatenates tensors along one dimension.
 	encoder_outputs = tf.concat((encoder_fw_outputs, encoder_bw_outputs), 2)
 
@@ -249,8 +284,20 @@ with tf.Session() as sess:
 			return loop_fn_transition(time, previous_output, previous_state, previous_loop_state)
 
 
+
+	# EZ A SZAR MEGINT INITIALIZÁLATLAN SUFFIXES VERZIÓT HOZ LÉTRE (MEGINT FELÜL KELL CSAPNI
 	decoder_outputs_ta, decoder_final_state, _ = tf.nn.raw_rnn(decoder_cell, loop_fn)
+	# print(sess.run(tf.report_uninitialized_variables()))
+	j = 0
+	for i in range(len(tf.trainable_variables())):
+		if tf.trainable_variables()[i].name.find('rnn/gru_cell/') != -1:
+			if tf.trainable_variables()[i].name.find('_1') != -1:
+				sess.run(tf.trainable_variables()[i].assign(no_suffix_rnn[j]))
+				j +=1
+				
+	
 	decoder_outputs = decoder_outputs_ta.stack()
+
 
 	#to convert output to human readable prediction
 	#we will reshape output tensor
@@ -273,6 +320,8 @@ with tf.Session() as sess:
 
 	#print(sess.run(tf.report_uninitialized_variables()))
 	#sess.run(tf.initialize_variables([v for v in tf.all_variables() if v.name.startswith("local")]))
+
+
 
 	encoder_inputs_, encoder_input_lengths_ = helpers.batch([sdata])
     
