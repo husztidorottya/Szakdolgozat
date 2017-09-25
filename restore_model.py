@@ -34,6 +34,16 @@ def encoding(data, alphabet_and_morph_tags):
         
 	return coded_word
 
+# converts vector of numbers back to characters
+def convert_back_tostring(parameters, data, alphabet_and_morph_tags):
+	word = ''
+	for element in data:
+		for char in element:
+			if char != parameters.EOS and char != parameters.BOS and char != parameters.PAD:
+				word = word + (list(alphabet_and_morph_tags.keys())[list(alphabet_and_morph_tags.values()).index(char)])
+
+	return word
+
 
 # class stores model parameters
 class Parameters:
@@ -316,8 +326,11 @@ def main():
     		encoder_inputs_length: encoder_input_lengths_
 		})
 
-		print('elvart:',tdata)
-		print('predict:',predict_.T)
+		print('expected:',target)
+		print('predicted:',convert_back_tostring(parameters, predict_.T, alphabet_and_morph_tags))
+
+		#print('elvart:',tdata)
+		#print('predict:',predict_.T)
 
 if __name__ == '__main__':
     main()
