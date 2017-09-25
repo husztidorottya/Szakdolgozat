@@ -20,6 +20,9 @@ def create_sequence(data_line_, word_index, parameters):
 
     for i in data_line_[word_index]:
         sequence.append(i)
+
+    if word_index != 1:
+        sequence.append(parameters.EOS)
              
     return sequence
 
@@ -133,9 +136,10 @@ def next_feed(source_batches, target_batches, encoder_inputs, encoder_inputs_len
         }
 
 
-def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters, saver):
+def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters, saver, alphabet_and_morph_tags):
     
     for epoch_num in range(parameters.epoch):
+            epoch_loss = 0
             # get every batches and train the model on it
             print('Epoch:',epoch_num)
 
@@ -144,13 +148,15 @@ def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length,
         
             # encoder inputs and decoder outputs devided into batches
             source_batches, target_batches = create_batches(source_data, target_data, parameters)
-
+            
             for batch_num in range(0, len(source_batches)):
                 fd = next_feed(source_batches, target_batches, encoder_inputs, encoder_inputs_length, decoder_targets, batch_num, parameters)
    
                 _, l = sess.run([train_op, loss], fd)
+                epoch_loss += l
+                
                 loss_track.append(l)
-        
+                '''
                 if batch_num == 0 or batch_num % parameters.batches_in_epoch == 0: 
                     print('batch {}'.format(batch_num))
                     print('  minibatch loss: {}'.format(sess.run(loss, fd)))
@@ -162,6 +168,10 @@ def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length,
                         if i >= 2:
                             break
                     print()
+                '''
+            # https://www.youtube.com/watch?v=PwAGxqrXSCs&list=PLSPWNkAMSvv5DKeSVDbEbUKSsK4Z-GgiP&index=4
+            print('epoch:',epoch_num, 'loss:', epoch_loss)
+           
     # save the model
     saver.save(sess, 'trained_model')
     return
@@ -183,7 +193,7 @@ class Parameters:
 def main():
 
     # GLOBAL CONTANTS
-    parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 100)
+    parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 1)
 
     loss_track = []
 
@@ -231,7 +241,7 @@ def main():
         # used to convert sequences to vectors (embeddings) for both encoder and decoder of the right size
         # reshaping is a thing, in TF you gotta make sure you tensors are the right shape (num dimensions)
         embeddings = tf.Variable(tf.random_uniform([vocab_size, parameters.input_embedding_size], -1.0, 1.0), dtype=tf.float32, name='embeddings')
-        #embeddings = tf.Variable(tf.eye(vocab_size, input_embedding_size), dtype='float32')
+        #embeddings = tf.Variable(tf.eye(vocab_size, parameters.input_embedding_size), dtype='float32')
 
         # this thing could get huge in a real world application
         encoder_inputs_embedded = tf.nn.embedding_lookup(embeddings, encoder_inputs)
@@ -403,7 +413,7 @@ def main():
         
             saver = tf.train.Saver()
 
-            train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters,saver)
+            train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters,saver, alphabet_and_morph_tags)
 
             # write out vocab, because needed at inference script
             with open('alphabet_and_morph_tags.tsv','w') as outputfile:
