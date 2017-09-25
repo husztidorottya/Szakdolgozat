@@ -163,7 +163,7 @@ def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length,
                             break
                     print()
     # save the model
-    saver.save(sess, 'my_test_model')
+    saver.save(sess, 'trained_model')
     return
 
 
@@ -409,14 +409,15 @@ def main():
             with open('alphabet_and_morph_tags.tsv','w') as outputfile:
                 for k,v in alphabet_and_morph_tags.items():
                     outputfile.write('{}\t{}\n'.format(k,v))
+            
             '''
             variables_names =[v.name for v in tf.trainable_variables()]
             values = sess.run(variables_names)
             for k,v in zip(variables_names, values):
                 print(k, v)
-
-            print(W.eval())
             '''
+            # print(W.eval())
+            
         
         except KeyboardInterrupt:
             print('training interrupted')
