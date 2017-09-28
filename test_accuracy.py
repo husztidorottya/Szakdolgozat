@@ -2,44 +2,7 @@ import tensorflow as tf
 import numpy as np
 import helpers
 import operator
-import random
 import argparse
-
-# create batches with size of batch_size
-def create_batches(source_data, target_data, parameters):
-    # stores batches
-    source_batches = []
-    target_batches = []
-    # stores last batch ending index
-    prev_batch_end = 0
-    
-    for j in range(0, len(source_data)):
-        if j % parameters.batch_size == 0 and j != 0:
-            # stores a batch
-            sbatch = []
-            tbatch = []
-            for k in range(prev_batch_end+1,j+1):
-                # store sequence
-                sbatch.append(source_data[k][0])
-                # store expected target_data (know from source_data index)
-                tbatch.append(target_data[source_data[k][1]])
-            # add created batch
-            source_batches.append(sbatch)
-            target_batches.append(tbatch)
-            prev_batch_end = j
-            
-    # put the rest of it in another batch
-    if prev_batch_end != j:
-        sbatch = []
-        tbatch = []
-        for k in range(prev_batch_end+1,j):
-            sbatch.append(source_data[k][0])
-            tbatch.append(target_data[source_data[k][1]])
-        source_batches.append(sbatch)
-        target_batches.append(tbatch)
-        
-    return source_batches, target_batches
-
 
 # create (source morphological tags + target morphological tags + source/target word) sequence
 def create_sequence(data_line_, word_index, parameters):
@@ -69,6 +32,7 @@ def encoding(data, coded_word, alphabet_and_morph_tags):
         coded_word.append(index)
         
     return coded_word
+
 
 def read_split_encode_data(filename, alphabet_and_morph_tags, parameters):
     # read, split and encode input data
@@ -107,9 +71,8 @@ def read_split_encode_data(filename, alphabet_and_morph_tags, parameters):
             # store decoder expected outputs:(target word)
             target_data.append(create_sequence(data_line_, target_idx, parameters))
         
-            
-
     return source_data, target_data
+
 
 def next_feed(source_batches, target_batches, encoder_inputs, encoder_inputs_length, decoder_targets, parameters):
         # get transpose of source_batches[batch_num]
@@ -149,6 +112,12 @@ def main():
 	# GLOBAL CONTANTS
 	parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 1000)
 
+	# read from command line
+	parser = argparse.ArgumentParser()
+	parser.add_argument('filename')
+	parser.add_argument('trained_model')
+	args = parser.parse_args()
+
 	alphabet_and_morph_tags = dict()
 
 	# read vocab
@@ -157,8 +126,8 @@ def main():
 			line_data = line.strip('\n').split('\t')
 			alphabet_and_morph_tags[line_data[0]] = int(line_data[1])
 
-
-	source_data, target_data = read_split_encode_data('task1_test.tsv', alphabet_and_morph_tags, parameters)
+	# read and encode test file data
+	source_data, target_data = read_split_encode_data(args.filename, alphabet_and_morph_tags, parameters)
 
 	# -----------------
 
@@ -168,7 +137,7 @@ def main():
 		sess.run(tf.global_variables_initializer())
 
 		#First let's load meta graph and restore 
-		saver = tf.train.import_meta_graph('trained_model_100_adam_identity.meta')
+		saver = tf.train.import_meta_graph(args.trained_model)
 		saver.restore(sess, tf.train.latest_checkpoint('./'))
 
 		# get max value of encoded forms
@@ -384,7 +353,6 @@ def main():
 
 		fd = next_feed(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, parameters)
    
-
 		predict_ = sess.run(decoder_prediction, fd)
 
 		encoder_inputs_, encoder_input_lengths_ = helpers.batch(source_data)
@@ -416,6 +384,7 @@ def main():
 			if right == 1:
 				sampleright += 1
 			samplenum += 1
+
 		print('accuracy:',sampleright/samplenum)
 
 

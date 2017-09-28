@@ -34,12 +34,14 @@ def encoding(data, alphabet_and_morph_tags):
         
 	return coded_word
 
+
 # converts vector of numbers back to characters
 def convert_back_tostring(parameters, data, alphabet_and_morph_tags):
 	word = ''
 	for element in data:
 		for char in element:
 			if char != parameters.EOS and char != parameters.BOS and char != parameters.PAD:
+				# https://stackoverflow.com/questions/23295315/get-key-by-value-dict-python
 				word = word + (list(alphabet_and_morph_tags.keys())[list(alphabet_and_morph_tags.values()).index(char)])
 
 	return word
@@ -75,17 +77,12 @@ def main():
 	# read from command line pl. "dobókocka N;IN+ABL;PL"
 	parser = argparse.ArgumentParser()
 	parser.add_argument('reinflection')
+	parser.add_argument('trained_model')
 	args = parser.parse_args()
 	split_input = args.reinflection.split(' ')
 	word = split_input[0]
 	tags = split_input[1].split(';')
-	#word = 'őrbódé'
-	#tags = ['N', 'IN+ABL', 'PL']
-	#target = 'őrbódékból'
-	#word = 'dobókocka'
-	#tags = ['N', 'DAT', 'PL']
-	target = 'dobókockáknak'
-
+	
 	data = []
 	data.append(encoding(word, alphabet_and_morph_tags))
 	data.append(encoding(tags, alphabet_and_morph_tags))
@@ -93,10 +90,6 @@ def main():
 	sdata = []
 	sdata.append(create_sequence(data, parameters))
 
-	data = []
-	data = (encoding(target, alphabet_and_morph_tags))
-	tdata = []
-	tdata.append(create_sequence([data], parameters))
 	# -----------------
 
 	tf.reset_default_graph() 
@@ -105,7 +98,7 @@ def main():
 		sess.run(tf.global_variables_initializer())
 
 		#First let's load meta graph and restore 
-		saver = tf.train.import_meta_graph('trained_model.meta')
+		saver = tf.train.import_meta_graph(args.trained_model)
 		saver.restore(sess, tf.train.latest_checkpoint('./'))
 
 		# get max value of encoded forms
@@ -326,7 +319,7 @@ def main():
     		encoder_inputs_length: encoder_input_lengths_
 		})
 
-		print('expected:',target)
+		#print('expected:',target)
 		print('predicted:',convert_back_tostring(parameters, predict_.T, alphabet_and_morph_tags))
 
 		#print('elvart:',tdata)
