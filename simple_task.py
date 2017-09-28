@@ -137,8 +137,20 @@ def next_feed(source_batches, target_batches, encoder_inputs, encoder_inputs_len
 
 
 def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters, saver, alphabet_and_morph_tags):
-    
+    patience = 3
+    delta = 0.001
+    patience_counter = 0
+
     for epoch_num in range(parameters.epoch):
+            # early stopping (https://www.quora.com/How-does-one-employ-early-stopping-in-TensorFlow)
+            if epoch_num > 0 and loss_track[epoch_num - 1] - loss_track[epoch_num] > delta:
+                patience_counter = 0
+            else:
+                patience_counter += 1
+
+            if patience_counter > patience:
+                break
+
             epoch_loss = 0
             # get every batches and train the model on it
             print('Epoch:',epoch_num)
@@ -173,7 +185,7 @@ def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length,
             print('epoch:',epoch_num, 'loss:', epoch_loss)
            
     # save the model
-    saver.save(sess, 'trained_model')
+    saver.save(sess, args.trained_model)
     return
 
 
@@ -193,7 +205,7 @@ class Parameters:
 def main():
 
     # GLOBAL CONTANTS
-    parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 1)
+    parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 1000)
 
     loss_track = []
 
@@ -208,6 +220,7 @@ def main():
     # read from command line
     parser = argparse.ArgumentParser()
     parser.add_argument('filename')
+    parser.add_argument('trained_model')
     args = parser.parse_args()
 
     source_data, target_data = read_split_encode_data(args.filename, alphabet_and_morph_tags, parameters)
@@ -240,8 +253,8 @@ def main():
         # randomly initialized embedding matrrix that can fit input sequence
         # used to convert sequences to vectors (embeddings) for both encoder and decoder of the right size
         # reshaping is a thing, in TF you gotta make sure you tensors are the right shape (num dimensions)
-        embeddings = tf.Variable(tf.random_uniform([vocab_size, parameters.input_embedding_size], -1.0, 1.0), dtype=tf.float32, name='embeddings')
-        #embeddings = tf.Variable(tf.eye(vocab_size, parameters.input_embedding_size), dtype='float32')
+        #embeddings = tf.Variable(tf.random_uniform([vocab_size, parameters.input_embedding_size], -1.0, 1.0), dtype=tf.float32, name='embeddings')
+        embeddings = tf.Variable(tf.eye(vocab_size, parameters.input_embedding_size), dtype='float32', name='embeddings')
 
         # this thing could get huge in a real world application
         encoder_inputs_embedded = tf.nn.embedding_lookup(embeddings, encoder_inputs)
@@ -279,8 +292,8 @@ def main():
 
         #manually specifying since we are going to implement attention details for the decoder in a sec
         #weights
-        W = tf.Variable(tf.random_uniform([decoder_hidden_units, vocab_size], -1, 1), dtype=tf.float32, name='W')
-        #W = tf.Variable(tf.eye(decoder_hidden_units, vocab_size), dtype='float32')
+        #W = tf.Variable(tf.random_uniform([decoder_hidden_units, vocab_size], -1, 1), dtype=tf.float32, name='W')
+        W = tf.Variable(tf.eye(decoder_hidden_units, vocab_size), dtype='float32', name='W')
         #bias
         b = tf.Variable(tf.zeros([vocab_size]), dtype=tf.float32, name='b')
 
@@ -404,8 +417,8 @@ def main():
         #loss function
         loss = tf.reduce_mean(stepwise_cross_entropy)
         #train it 
-        #train_op = tf.train.AdamOptimizer().minimize(loss)
-        train_op = tf.train.GradientDescentOptimizer(0.1).minimize(loss) # set learning_rate = 0.001
+        train_op = tf.train.AdamOptimizer().minimize(loss)
+        #train_op = tf.train.GradientDescentOptimizer(0.1).minimize(loss) # set learning_rate = 0.001
 
         sess.run(tf.global_variables_initializer())
 
