@@ -399,6 +399,8 @@ def main():
         )
 
         # calculate accuracy
+        # transpose back the arrays
+        # correct is a list of true and false values depends on equality
 		correct = tf.equal(tf.cast(predict_.transpose(), tf.float32), tf.cast(decoder_targets_.transpose(), tf.float32))
 		equality = correct.eval(fd)
 
