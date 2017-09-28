@@ -147,7 +147,7 @@ class Parameters:
 
 def main():
 	# GLOBAL CONTANTS
-	parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 100)
+	parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 1000)
 
 	alphabet_and_morph_tags = dict()
 
@@ -168,7 +168,7 @@ def main():
 		sess.run(tf.global_variables_initializer())
 
 		#First let's load meta graph and restore 
-		saver = tf.train.import_meta_graph('trained_model.meta')
+		saver = tf.train.import_meta_graph('trained_model_100_adam_identity.meta')
 		saver.restore(sess, tf.train.latest_checkpoint('./'))
 
 		# get max value of encoded forms
@@ -385,11 +385,6 @@ def main():
 		fd = next_feed(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, parameters)
    
 
-		#encoder_inputs_, encoder_inputs_length_ = helpers.batch(source_data)
-		#decoder_targets_, _ = helpers.batch(target_data)
-
-		#fd = {encoder_inputs:encoder_inputs_, encoder_inputs_length:encoder_inputs_length_, decoder_targets:decoder_targets_}
-
 		predict_ = sess.run(decoder_prediction, fd)
 
 		encoder_inputs_, encoder_input_lengths_ = helpers.batch(source_data)
@@ -403,25 +398,25 @@ def main():
             [(sequence) + [parameters.EOS] + [parameters.PAD] * ((max_input_length + parameters.character_changing_num - 1) - len(sequence))  for sequence in target_data]
         )
 
+        # calculate accuracy
+		correct = tf.equal(tf.cast(predict_.transpose(), tf.float32), tf.cast(decoder_targets_.transpose(), tf.float32))
+		equality = correct.eval(fd)
 
-		correct = tf.equal(tf.argmax(predict_,1), tf.argmax(decoder_targets_,1))
-		accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-		print('Acc:', accuracy.eval(fd))
+		samplenum = 0
+		sampleright = 0
+		
+		for i in equality:
+			right = 1
+			for j in i:
+				if j == False:
+					right = 0
+					break
+			if right == 1:
+				sampleright += 1
+			samplenum += 1
+		print('accuracy:',sampleright/samplenum)
 
-		#print(sess.run(tf.report_uninitialized_variables()))
-		#sess.run(tf.initialize_variables([v for v in tf.all_variables() if v.name.startswith("local")]))
 
-		'''
-		encoder_inputs_, encoder_input_lengths_ = helpers.batch(sdata)
-    
-		predict_ = sess.run(decoder_prediction, feed_dict={
-    		encoder_inputs: encoder_inputs_,
-    		encoder_inputs_length: encoder_input_lengths_
-		})
-
-		print('elvart:',tdata)
-		print('predict:',predict_.T)
-		'''
 
 if __name__ == '__main__':
     main()
