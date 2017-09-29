@@ -498,7 +498,7 @@ def main():
         
             saver = tf.train.Saver()
 
-            train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters,saver, alphabet_and_morph_tags)
+            train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters,saver, alphabet_and_morph_tags, args)
 
             # write out vocab, because needed at inference script
             with open('alphabet_and_morph_tags.tsv','w') as outputfile:
