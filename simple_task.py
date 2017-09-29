@@ -5,24 +5,95 @@ import operator
 import random
 import argparse
 
+# for sigm2016 tasks as input
+def sigm_task_2016(data_line_, item, alphabet_and_morph_tags):
+    coded_word = []
+    # task1
+    if len(data_line_) == 3:
+        if item == 1:
+            # split morphological tags
+            tags = data_line_[item].split(',')
+                
+            coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
+        else:
+            # encode source and target word
+            coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
+    # task2
+    else:
+        if item == 0 or item == 2:
+            # split morphological tags
+            tags = data_line_[item].split(',')
+                
+            coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
+        else:
+            # encode source and target word
+            coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
+
+    return coded_word
+
+
+# for sigm2017 tasks as input
+def sigm_task_2017(data_line_, item, alphabet_and_morph_tags):
+    coded_word = []
+
+    # task1
+    if item == 2:
+        # split morphological tags
+        tags = data_line_[item].split(';')
+                
+        coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
+    else:
+            # encode source and target word
+            coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
+
+    return coded_word
+
 
 # create (source morphological tags + target morphological tags + source/target word) sequence
-def create_sequence(data_line_, word_index, parameters):
+def create_sequence(data_line_, issource, parameters, is2016):
     sequence = []
-    
-    if word_index != 1:
-        # source and target morphological tags are appended only to the input
-        for i in data_line_[2]:
-            sequence.append(i)
+
+    if is2016:
+        if issource:
+            if len(data_line_) == 4:
+                # source morph tags
+                for i in data_line_[0]:
+                    sequence.append(i)
+                # target morph tags
+                for i in data_line_[2]:
+                    sequence.append(i)
+            else:
+                for i in data_line_[1]:
+                    sequence.append(i)
+            
+            sequence.append(parameters.BOS)
+
+            for i in data_line_[len(data_line_)-3]:
+                sequence.append(i)
+
+            sequence.append(parameters.EOS)
+        else:
+            sequence.append(parameters.BOS)
+
+            for i in data_line_[len(data_line_)-1]:
+                sequence.append(i)
+    else:    
+        if issource:
+            # source and target morphological tags are appended only to the input
+            for i in data_line_[2]:
+                sequence.append(i)
         
-    # append beginning of the input
-    sequence.append(parameters.BOS)
+            # append beginning of the input
+            sequence.append(parameters.BOS)
 
-    for i in data_line_[word_index]:
-        sequence.append(i)
+            for i in data_line_[0]:
+                sequence.append(i)
 
-    if word_index != 1:
-        sequence.append(parameters.EOS)
+            sequence.append(parameters.EOS)
+        else:
+            sequence.append(parameters.BOS)
+            for i in data_line_[1]:
+                sequence.append(i)
              
     return sequence
 
@@ -45,35 +116,32 @@ def read_split_encode_data(filename, alphabet_and_morph_tags, parameters):
         # read it line-by-line
         for line in input_file:
             data_line_ = line.strip('\n').split('\t')
+
+            is2016 = (line.find('=') != -1)
         
             # encode words into vector of ints 
             for item in range(0,len(data_line_)):         
                 # contains encoded form of word
                 coded_word = []
             
-                if item == 2:
-                    # split morphological tags
-                    tags = data_line_[item].split(';')
-                
-                    coded_word = encoding(tags, coded_word, alphabet_and_morph_tags)
+                # check if input is sigm2016 or sigm2017
+                if is2016:
+                    # sigm2016
+                    coded_word = sigm_task_2016(data_line_, item, alphabet_and_morph_tags)
+                # sigm2017 input
                 else:
-                    # encode source and target word
-                    coded_word = encoding(data_line_[item], coded_word, alphabet_and_morph_tags)
-                        
+                    coded_word = sigm_task_2017(data_line_, item, alphabet_and_morph_tags)
+
                 # store encoded form
                 data_line_[item] = coded_word
-        
-            # defines source and target words' index
-            source_idx = len(data_line_) - 3
-            target_idx = len(data_line_) - 2 
-        
+
             # store encoder input task 2:(source morphological tags + target morphological tags + source word)
             # task 1,3: (source/target morphological tags + source word)
-            source_data.append([create_sequence(data_line_, source_idx, parameters), idx])
-        
+            source_data.append([create_sequence(data_line_, True, parameters, is2016), idx])
+            
             # store decoder expected outputs:(target word)
-            target_data.append(create_sequence(data_line_, target_idx, parameters))
-        
+            target_data.append(create_sequence(data_line_, False, parameters, is2016))
+            
             # stores line number (needed for shuffle) - reference for the target_data
             idx += 1
 
@@ -112,7 +180,11 @@ def create_batches(source_data, target_data, parameters):
             tbatch.append(target_data[source_data[k][1]])
         source_batches.append(sbatch)
         target_batches.append(tbatch)
-        
+    # in case its single line
+    if j == 0: 
+        source_batches.append([source_data[j][0]])
+        target_batches.append([target_data[source_data[j][1]]])
+
     return source_batches, target_batches
 
 
@@ -141,26 +213,17 @@ def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length,
     delta = 0.001
     patience_counter = 0
 
-    for epoch_num in range(parameters.epoch):
-            # early stopping (https://www.quora.com/How-does-one-employ-early-stopping-in-TensorFlow)
-            if epoch_num > 0 and loss_track[epoch_num - 1] - loss_track[epoch_num] > delta:
-                patience_counter = 0
-            else:
-                patience_counter += 1
-
-            if patience_counter > patience:
-                break
+    for epoch_num in range(0,parameters.epoch):
 
             epoch_loss = 0
             # get every batches and train the model on it
-            print('Epoch:',epoch_num)
-
+            
             # shuffle it in every epoch for creating random batches
             source_data = random.sample(source_data, len(source_data))
         
             # encoder inputs and decoder outputs devided into batches
             source_batches, target_batches = create_batches(source_data, target_data, parameters)
-            
+
             for batch_num in range(0, len(source_batches)):
                 fd = next_feed(source_batches, target_batches, encoder_inputs, encoder_inputs_length, decoder_targets, batch_num, parameters)
    
@@ -183,6 +246,16 @@ def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length,
                 '''
             # https://www.youtube.com/watch?v=PwAGxqrXSCs&list=PLSPWNkAMSvv5DKeSVDbEbUKSsK4Z-GgiP&index=4
             print('epoch:',epoch_num, 'loss:', epoch_loss)
+
+            # early stopping (https://www.quora.com/How-does-one-employ-early-stopping-in-TensorFlow)
+            if epoch_num > 0 and loss_track[epoch_num - 1] - loss_track[epoch_num] > delta:
+                patience_counter = 0
+            else:
+                patience_counter += 1
+
+            if patience_counter > patience:
+                break
+
            
     # save the model
     saver.save(sess, args.trained_model)
@@ -224,7 +297,6 @@ def main():
     args = parser.parse_args()
 
     source_data, target_data = read_split_encode_data(args.filename, alphabet_and_morph_tags, parameters)
-
     
     # Clears the default graph stack and resets the global default graph.
     tf.reset_default_graph() 
