@@ -278,7 +278,7 @@ class Parameters:
 def main():
 
     # GLOBAL CONTANTS
-    parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 100)
+    parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 200)
 
     loss_track = []
 
