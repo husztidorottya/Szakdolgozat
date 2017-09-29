@@ -209,12 +209,12 @@ def next_feed(source_batches, target_batches, encoder_inputs, encoder_inputs_len
 
 
 def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters, saver, alphabet_and_morph_tags, args):
-    patience = 3
-    delta = 0.001
+    patience = 5
+    delta = 0.01
     patience_counter = 0
 
     for epoch_num in range(0,parameters.epoch):
-
+            print('Epoch:', epoch_num)
             epoch_loss = 0
             # get every batches and train the model on it
             
@@ -278,7 +278,7 @@ class Parameters:
 def main():
 
     # GLOBAL CONTANTS
-    parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 200)
+    parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 100)
 
     loss_track = []
 
