@@ -208,7 +208,7 @@ def next_feed(source_batches, target_batches, encoder_inputs, encoder_inputs_len
         }
 
 
-def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters, saver, alphabet_and_morph_tags):
+def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, train_op, loss, decoder_prediction, sess, loss_track, parameters, saver, alphabet_and_morph_tags, args):
     patience = 3
     delta = 0.001
     patience_counter = 0
@@ -278,7 +278,7 @@ class Parameters:
 def main():
 
     # GLOBAL CONTANTS
-    parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 1000)
+    parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 100)
 
     loss_track = []
 
