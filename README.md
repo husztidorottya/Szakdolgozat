@@ -16,5 +16,5 @@
     python3 test_accuracy.py task1_test.tsv trained_model_100_adam_identity.meta
     
 # Forrásfájlok, amiket használhatsz:
-  o task1.tsv - tanító adat
-  o task1_test.tsv - teszt adat
+o task1.tsv - tanító adat
+o task1_test.tsv - teszt adat
