@@ -258,7 +258,8 @@ def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length,
             if patience_counter > parameters.early_stopping_patience:
                 break
 
-           
+    with open(args.trained_model + str(exp_num) + '_parameters.tsv', 'a') as output_parameters:
+        output_parameters.write('loss\t{}\n'.format(epoch_loss))
     # save the model
     saver.save(sess, args.trained_model + str(exp_num))
     return
