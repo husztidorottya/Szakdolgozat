@@ -49,20 +49,22 @@ def convert_back_tostring(parameters, data, alphabet_and_morph_tags):
 
 # class stores model parameters
 class Parameters:
-   def __init__(self, BOS, EOS, PAD, character_changing_num, batches_in_epoch, input_embedding_size, neuron_num, epoch):
+   def __init__(self, BOS, EOS, PAD, character_changing_num, input_embedding_size, neuron_num, epoch, delta, patience, batch_size, learning_rate):
       self.BOS = BOS
       self.EOS = EOS
       self.PAD = PAD
       self.character_changing_num = character_changing_num
-      self.batches_in_epoch = batches_in_epoch
       self.input_embedding_size = input_embedding_size
       self.neuron_num = neuron_num
       self.epoch = epoch
-
+      self.early_stopping_delta = delta
+      self.early_stopping_patience = patience
+      self.batch_size = batch_size
+      self.learning_rate = learning_rate
 
 def main():
 	# GLOBAL CONTANTS
-	parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 100)
+	parameters = Parameters(2, 1, 0, 10, 300, 100, 100, 0.001, 5, 20, 0.001)
 
 	alphabet_and_morph_tags = dict()
 
@@ -94,7 +96,7 @@ def main():
 	tf.reset_default_graph() 
 
 	# we need to load the trained model parameters
-	with open(args.trained_model[:args.trained_model.find('.')] + '_parameters.tsv', 'r') as input_parameters:
+	with open('parameters/' + args.trained_model[:args.trained_model.find('.')] + '_parameters.tsv', 'r') as input_parameters:
 		line_num = 0
 		for line in input_parameters:
 			param_line = line.strip('\n').split('\t')
@@ -120,8 +122,8 @@ def main():
 		sess.run(tf.global_variables_initializer())
 
 		#First let's load meta graph and restore 
-		saver = tf.train.import_meta_graph(args.trained_model)
-		saver.restore(sess, './' + args.trained_model[:args.trained_model.find('.')])
+		saver = tf.train.import_meta_graph('trained_models/' +args.trained_model)
+		saver.restore(sess, 'trained_models/' + args.trained_model[:args.trained_model.find('.')])
 
 		# get max value of encoded forms
 		max_alphabet_and_morph_tags = alphabet_and_morph_tags[max(alphabet_and_morph_tags.items(), key=operator.itemgetter(1))[0]]

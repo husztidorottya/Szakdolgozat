@@ -201,7 +201,7 @@ def main():
 			alphabet_and_morph_tags[line_data[0]] = int(line_data[1])
 
 	# we need to load the trained model parameters
-	with open(args.trained_model[:args.trained_model.find('.')] + '_parameters.tsv', 'r') as input_parameters:
+	with open('parameters/' + args.trained_model[:args.trained_model.find('.')] + '_parameters.tsv', 'r') as input_parameters:
 		line_num = 0
 		for line in input_parameters:
 			param_line = line.strip('\n').split('\t')
@@ -234,9 +234,9 @@ def main():
 		sess.run(tf.global_variables_initializer())
 
 		#First let's load meta graph and restore 
-		saver = tf.train.import_meta_graph(args.trained_model)
+		saver = tf.train.import_meta_graph('trained_models/' + args.trained_model)
 		#saver.restore(sess, tf.train.latest_checkpoint('./'))
-		saver.restore(sess, './' + args.trained_model[:args.trained_model.find('.')])
+		saver.restore(sess, 'trained_models/' + args.trained_model[:args.trained_model.find('.')])
 
 
 		# get max value of encoded forms

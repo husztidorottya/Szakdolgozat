@@ -258,10 +258,10 @@ def train_model(source_data, target_data, encoder_inputs, encoder_inputs_length,
             if patience_counter > parameters.early_stopping_patience:
                 break
 
-    with open(args.trained_model + str(exp_num) + '_parameters.tsv', 'a') as output_parameters:
+    with open('parameters/' + args.trained_model + str(exp_num) + '_parameters.tsv', 'a') as output_parameters:
         output_parameters.write('loss\t{}\n'.format(epoch_loss))
     # save the model
-    saver.save(sess, args.trained_model + str(exp_num))
+    saver.save(sess, 'trained_models/' + args.trained_model + str(exp_num))
     return
 
 
@@ -288,14 +288,14 @@ def experiment(source_data):
     batch_size_param = [20, 64, len(source_data)]
     epoch_param = [10, 20, 30, 40]
     early_stopping_patience_param = [3, 5, 10]
-    early_stopping_delta_param = [0.01, 0.001]
-    learning_rate_param = [0.1, 0.01, 0.001, 0.0001]
+    early_stopping_delta_param = [0.001, 0.0001]
+    learning_rate_param = [0.1, 0.01, 0.001]
 
     return Parameters(2, 1, 0, 10, random.choice(input_embedding_size_param), random.choice(neuron_num_param), random.choice(epoch_param), random.choice(early_stopping_delta_param), random.choice(early_stopping_patience_param), random.choice(batch_size_param), random.choice(learning_rate_param))
 
 def write_parameters_to_file(parameters, args, exp_num):
     # write out parameters (we need it at test_accuracy, because the models are different when parameters different)
-    with open(args.trained_model + str(exp_num) + '_parameters.tsv', 'w') as output_parameters:
+    with open('parameters/' + args.trained_model + str(exp_num) + '_parameters.tsv', 'w') as output_parameters:
         output_parameters.write('input_embedding_size\t{}\n'.format(parameters.input_embedding_size))
         output_parameters.write('neuron_num\t{}\n'.format(parameters.neuron_num))
         output_parameters.write('epoch\t{}\n'.format(parameters.epoch))
