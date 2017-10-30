@@ -65,14 +65,14 @@ def create_sequence(data_line_, issource, parameters, is2016):
                 for i in data_line_[1]:
                     sequence.append(i)
             
-            sequence.append(parameters.BOS)
+            sequence.append(parameters.SOS)
 
             for i in data_line_[len(data_line_)-3]:
                 sequence.append(i)
 
             sequence.append(parameters.EOS)
         else:
-            sequence.append(parameters.BOS)
+            sequence.append(parameters.SOS)
 
             for i in data_line_[len(data_line_)-1]:
                 sequence.append(i)
@@ -83,14 +83,14 @@ def create_sequence(data_line_, issource, parameters, is2016):
                 sequence.append(i)
         
             # append beginning of the input
-            sequence.append(parameters.BOS)
+            sequence.append(parameters.SOS)
 
             for i in data_line_[0]:
                 sequence.append(i)
 
             sequence.append(parameters.EOS)
         else:
-            sequence.append(parameters.BOS)
+            sequence.append(parameters.SOS)
             for i in data_line_[1]:
                 sequence.append(i)
              
@@ -167,23 +167,24 @@ def next_feed(source_batches, target_batches, encoder_inputs, encoder_inputs_len
         }
 
 
-# class stores model parameters
 class Parameters:
-   def __init__(self, BOS, EOS, PAD, character_changing_num, batches_in_epoch, input_embedding_size, neuron_num, epoch):
-      self.BOS = BOS
+   def __init__(self, SOS, EOS, PAD, character_changing_num, input_embedding_size, neuron_num, epoch, delta, patience, batch_size, learning_rate):
+      self.SOS = SOS
       self.EOS = EOS
       self.PAD = PAD
       self.character_changing_num = character_changing_num
-      self.batches_in_epoch = batches_in_epoch
       self.input_embedding_size = input_embedding_size
       self.neuron_num = neuron_num
       self.epoch = epoch
-      self.batch_size = 20
+      self.early_stopping_delta = delta
+      self.early_stopping_patience = patience
+      self.batch_size = batch_size
+      self.learning_rate = learning_rate
 
 
 def main():
 	# GLOBAL CONTANTS
-	parameters = Parameters(2, 1, 0, 10, 100, 300, 100, 1000)
+	parameters = Parameters(2, 1, 0, 10, 300, 100, 100, 0.001, 5, 20, 0.001)
 
 	# read from command line
 	parser = argparse.ArgumentParser()
@@ -198,6 +199,29 @@ def main():
 		for line in inputfile:
 			line_data = line.strip('\n').split('\t')
 			alphabet_and_morph_tags[line_data[0]] = int(line_data[1])
+	
+	# we need to load the trained model parameters
+	with open('parameters/' + args.trained_model + '_parameters.tsv', 'r') as input_parameters:
+		line_num = 0
+		for line in input_parameters:
+			param_line = line.strip('\n').split('\t')
+			if line_num == 0:
+				parameters.input_embedding_size = int(param_line[1])
+			if line_num == 1:
+				parameters.neuron_num = int(param_line[1])
+			if line_num == 2:
+				parameters.epoch = int(param_line[1])
+			if line_num == 3:
+				parameters.early_stopping_delta = float(param_line[1])
+			if line_num == 4:
+				parameters.early_stopping_patience = int(param_line[1])
+			if line_num == 5:
+				parameters.batch_size = param_line[1]
+				print(param_line[1])
+			if line_num == 6:
+				parameters.learning_rate = float(param_line[1])
+			line_num += 1
+	
 
 	# read and encode test file data
 	source_data, target_data = read_split_encode_data(args.filename, alphabet_and_morph_tags, parameters)
@@ -210,8 +234,12 @@ def main():
 		sess.run(tf.global_variables_initializer())
 
 		#First let's load meta graph and restore 
-		saver = tf.train.import_meta_graph(args.trained_model)
-		saver.restore(sess, tf.train.latest_checkpoint('./'))
+		#saver = tf.train.import_meta_graph('trained_models/' + args.trained_model + '/' + args.trained_model + '.meta')
+		saver = tf.train.import_meta_graph('trained_models/' + args.trained_model + '/' + args.trained_model + '.meta')
+		
+		saver.restore(sess, tf.train.latest_checkpoint('trained_models/' + args.trained_model + '/'))
+		#saver.restore(sess, tf.train.latest_checkpoint('output/wtf/'))
+
 
 		# get max value of encoded forms
 		max_alphabet_and_morph_tags = alphabet_and_morph_tags[max(alphabet_and_morph_tags.items(), key=operator.itemgetter(1))[0]]
@@ -246,6 +274,7 @@ def main():
 		# define encoder
 		encoder_cell = tf.contrib.rnn.GRUCell(encoder_hidden_units)
 
+		
 		# save trainable_variables without suffix
 		no_suffix = []
 		for v in tf.trainable_variables():
@@ -256,7 +285,7 @@ def main():
 		for v in no_suffix:
 			if v.name.find('rnn/gru_cell/') != -1:
 				no_suffix_rnn.append(v)
-
+		
 	
 		# EZ A SZAR LÉTREHOZ EGY SUFFIXES INITIALITÁLATLAN VÁLTOZATOT, FELÜL KELL CSAPNI
 		# define bidirectionel function of encoder (backpropagation)
@@ -273,7 +302,7 @@ def main():
 
 		# ITT JÖN AZ ELSŐ HIBA, HOGY INITIALIZÁLATLAN weights_1, biases_1
 		#print(sess.run(tf.report_uninitialized_variables()))
-	
+		
 		# save trainable_variables with suffix (created by bidirectional_dynamic_rnn function)
 		suffix = []
 		for v in tf.trainable_variables():
@@ -289,7 +318,7 @@ def main():
 			if tf.trainable_variables()[i].name.find('_1') != -1:
 				sess.run(tf.trainable_variables()[i].assign(suffix[j]))	
 				j += 1
-
+		
 
 		#Concatenates tensors along one dimension.
 		encoder_outputs = tf.concat((encoder_fw_outputs, encoder_bw_outputs), 2)
@@ -313,9 +342,9 @@ def main():
 
 		#create padded inputs for the decoder from the word embeddings
 		#were telling the program to test a condition, and trigger an error if the condition is false.
-		assert parameters.EOS == 1 and parameters.PAD == 0 and parameters.BOS == 2
+		assert parameters.EOS == 1 and parameters.PAD == 0 and parameters.SOS == 2
 
-		bos_time_slice = tf.fill([parameters.batch_size], 2, name='BOS')
+		sos_time_slice = tf.fill([parameters.batch_size], 2, name='SOS')
 		eos_time_slice = tf.ones([parameters.batch_size], dtype=tf.int32, name='EOS')
 		pad_time_slice = tf.zeros([parameters.batch_size], dtype=tf.int32, name='PAD')
 
@@ -323,7 +352,7 @@ def main():
 		parameters.batch_size = len(source_data)
 
 		#retrieves rows of the params tensor. The behavior is similar to using indexing with arrays in numpy
-		bos_step_embedded = tf.nn.embedding_lookup(embeddings, bos_time_slice)
+		sos_step_embedded = tf.nn.embedding_lookup(embeddings, sos_time_slice)
 		eos_step_embedded = tf.nn.embedding_lookup(embeddings, eos_time_slice)
 		pad_step_embedded = tf.nn.embedding_lookup(embeddings, pad_time_slice)
     
@@ -336,7 +365,7 @@ def main():
     		#end of sentence
     		# -------------
     		#initial_input = eos_step_embedded
-			initial_input = bos_step_embedded
+			initial_input = sos_step_embedded
     		# -------------
     		#last time steps cell state
 			initial_cell_state = encoder_final_state
@@ -423,7 +452,6 @@ def main():
 		#final prediction
 		decoder_prediction = tf.argmax(decoder_logits, 2)
 
-
 		fd = next_feed(source_data, target_data, encoder_inputs, encoder_inputs_length, decoder_targets, parameters)
    
 		predict_ = sess.run(decoder_prediction, fd)
@@ -461,8 +489,5 @@ def main():
 		print('accuracy:',sampleright/samplenum)
 
 
-
 if __name__ == '__main__':
     main()
-
-
