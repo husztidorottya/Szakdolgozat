@@ -12,7 +12,7 @@ Használata parancssorból:
   
   Használata parancssorból:
     
-    python3 inferencia.py "államigazgatás N;IN+ESS;SG" trained_model0
+    python3 inferencia.py "államigazgatás<tab>N;IN+ESS;SG" trained_model0
     
 ## 3. test_accuracy.py
   A script tetszőlegesen lementett modellt képes tesztelni tetszőleges input fájlon és megadja, hogy az adott fájlon milyen accuracy-t sikerült elérni teljes szóegyezést vizsgálva. 
