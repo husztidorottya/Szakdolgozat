@@ -1,26 +1,33 @@
 # Szakdolgozat
-A morfológiai reinflexió megvalósítását végző rendszer forráskódját tartalmazó repository. A futtatásához mindenképpen szükséges a Tensorflow könyvtár feltelepítése, valamint ajánlott a Python3.6.0 használata.
+A nyelvfüggetlen morfológiai reinflexió megvalósítását végző rendszer forráskódját tartalmazó repository. A futtatásához mindenképpen szükséges a Tensorflow könyvtár feltelepítése, valamint ajánlott a Python3.6.0 használata.
 
-## 1. morfologiai_reinflexio.py
-Ez a python script a megadott forrásfájlon véletlen paraméterösszeállítású, megadott számú kísérletet végez. Feltanítja a modellt és lementi a betanított modelleket.
+## 1. morphological_reinflection.py
+  Ez a python script a megadott forrásfájlon véletlen paraméterösszeállítású, megadott számú kísérletet végez. Feltanítja a modellt és lementi a betanított modelleket az általuk használt paraméterkombinációkkal. A paramétereket a parameters, míg a betanított modelleket a trained_models mappákba szervezi őket.
+Amennyiben a modell számára magyar nyelven legnagyobb pontosságot biztosító paraméterkombinációt szeretné kipróbálni, ebben az esetben a kódban található erre vonatkozó kikommentezett sort kell feloldania. 
 
 Használata parancssorból:
     
-    python3 morfologiai_reinflexio.py task1.tsv 1
+    python3 morphological_reinflection.py task1.tsv 1
     
-## 2. inferencia.py
-  A script az inferencia megvalósítása. Megadott forrás szóalakon elvégzi a morfológiai tag-eknek megfelelő reinflexiós lépéseket. Végül szöveges formába visszakonvertálja a megjósolt cél szóalakot. Ehhez csak a betanított modell forrásfájlját kell megadni neki parancssori paraméterként, amit visszatölt.
+A feltanított modellek veszteségének alakulását a Tensorboard segítségével vizualizáltam, melyet skalár diagram és hisztogram formájában is megtekinthet. A diagramokat a feltanítás sorrendjében sorszámmal látja el, így modellenként külön-külön megtekinthető. Ehhez a fájlokat az output mappában tárolja.
+
+Vizualizáció megtekintése:
+    
+    tensorboard --logdir=output
+
+## 2. inference.py
+  A script az inferencia megvalósítása. Megadott forrás szóalakon elvégzi a morfológiai tag-eknek megfelelő reinflexiós lépéseket. Végül szöveges formába visszakonvertálja a megjósolt célszóalakot. Ehhez csak a betanított modell forrásfájlját kiterjesztés nélkül kell megadni  parancssori paraméterként, amit visszatölt.
   
   Használata parancssorból:
     
-    python3 inferencia.py "államigazgatás<tab>N;IN+ESS;SG" trained_model0
+    python3 inference.py "államigazgatás<tab>N;IN+ESS;SG" trained_model0
     
 ## 3. test_accuracy.py
-  A script tetszőlegesen lementett modellt képes tesztelni tetszőleges input fájlon és megadja, hogy az adott fájlon milyen accuracy-t sikerült elérni teljes szóegyezést vizsgálva. 
+  A script tetszőlegesen lementett modellt képes tesztelni tetszőleges input fájlon és megadja, hogy az adott fájlon milyen pontosságot sikerült elérni teljes szóegyezést vizsgálva. 
   
   Használata parancssorból:
     
     python3 test_accuracy.py task1_test.tsv trained_model0
     
-## Forrásfájlok:
-  A kód kipróbálásához az adathalmazokat kérésre továbbítom.  
+## Tanító és teszt adathalmaz:
+  A kód kipróbálásához az adathalmazokat kérésre továbbítom.
