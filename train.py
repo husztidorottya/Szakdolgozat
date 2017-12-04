@@ -50,7 +50,7 @@ def sigm_task_2017(data_line_, item, alphabet_and_morph_tags):
     return coded_word
 
 
-# create sequence (source morphological tags + target morphological tags + source/target word)
+# create sequence for input or output
 def create_sequence(data_line_, issource, parameters, is2016):
     sequence = []
 
@@ -460,8 +460,7 @@ def main():
             pad_step_embedded = tf.nn.embedding_lookup(embeddings, pad_time_slice)
     
             #manually specifying loop function through time - to get initial cell state and input to RNN
-            #normally we'd just use dynamic_rnn, but lets get detailed here with raw_rnn
-
+            
             #we define and return these values, no operations occur here
             def loop_fn_initial():
                 initial_elements_finished = (0 >= decoder_lengths)  # all False at the initial step
