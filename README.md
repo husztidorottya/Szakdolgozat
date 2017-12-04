@@ -16,7 +16,7 @@ Vizualizáció megtekintése:
     tensorboard --logdir=output
 
 ## 2. inference.py
-  A script az inferencia megvalósítása. Megadott forrás szóalakon elvégzi a morfológiai tag-eknek megfelelő reinflexiós lépéseket. Végül szöveges formába visszakonvertálja a megjósolt célszóalakot. Ehhez csak a betanított modell forrásfájlját kiterjesztés nélkül kell megadni  parancssori paraméterként, amit visszatölt.
+  A script az inferencia megvalósítása. Megadott forrás szóalakon elvégzi a morfológiai tag-eknek megfelelő reinflexiós lépéseket. Végül szöveges formába visszakonvertálja a megjósolt célszóalakot. Ehhez csak a betanított modell kiterjesztés nélküli forrásfájlját kell megadni  parancssori paraméterként, amit ezután visszatölt. Fontos megjegyezni, hogy a forrás szóalakot és a célparadigmát tabulátorral kell elválasztani egymástól.
   
   Használata parancssorból:
     
