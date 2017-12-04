@@ -2,7 +2,7 @@
 A nyelvfüggetlen morfológiai reinflexió megvalósítását végző rendszer forráskódját tartalmazó repository. A futtatásához mindenképpen szükséges a Tensorflow könyvtár feltelepítése, valamint ajánlott a Python3.6.0 használata.
 
 ## 1. morphological_reinflection.py
-  Ez a python script a megadott forrásfájlon véletlen paraméterösszeállítású, megadott számú kísérletet végez. Feltanítja a modellt és lementi a betanított modelleket az általuk használt paraméterkombinációkkal. A paramétereket a parameters, míg a betanított modelleket a trained_models mappákba szervezi őket.
+  Ez a python script a megadott forrásfájlon véletlen paraméterösszeállítású, megadott számú kísérletet végez. Feltanítja a modellt és lementi a betanított modelleket az általuk használt paraméterkombinációkkal. A paramétereket a parameters, míg a betanított modelleket a trained_models mappákba szervezi.
 Amennyiben a modell számára magyar nyelven legnagyobb pontosságot biztosító paraméterkombinációt szeretné kipróbálni, ebben az esetben a kódban található erre vonatkozó kikommentezett sort kell feloldania. 
 
 Használata parancssorból:
