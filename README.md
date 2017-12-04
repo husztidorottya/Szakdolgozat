@@ -1,4 +1,5 @@
 # Szakdolgozat
+A morfológiai reinflexió megvalósítását végző rendszer forráskódját tartalmazó repository. A futtatásához mindenképpen szükséges a Tensorflow könyvtár feltelepítése, valamint ajánlott a Python3.6.0 használata.
 
 ## 1. morfologiai_reinflexio.py
 Ez a python script a megadott forrásfájlon véletlen paraméterösszeállítású, megadott számú kísérletet végez. Feltanítja a modellt és lementi a betanított modelleket.
@@ -21,6 +22,5 @@ Használata parancssorból:
     
     python3 test_accuracy.py task1_test.tsv trained_model0
     
-## Forrásfájlok, amiket használhatsz:
-- task1.tsv - tanító adat
-- task1_test.tsv - teszt adat
+## Forrásfájlok:
+  A kód kipróbálásához az adathalmazokat kérésre továbbítom.  
