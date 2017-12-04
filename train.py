@@ -50,7 +50,7 @@ def sigm_task_2017(data_line_, item, alphabet_and_morph_tags):
     return coded_word
 
 
-# create sequence (source morphological tags + target morphological tags + source/target word)
+# create sequence for input or output
 def create_sequence(data_line_, issource, parameters, is2016):
     sequence = []
 
